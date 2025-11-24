@@ -12,8 +12,8 @@ import notificacionesRoutes from "./notificaciones.routes.js";
 import { pool } from "./db.js";
 
 console.log(
-  "🔑 OPENAI_API_KEY cargada (primeros 10 chars):",
-  process.env.OPENAI_API_KEY?.slice(0, 10)
+  "🔑 GROQ_API_KEY cargada (primeros 5 chars):",
+  process.env.GROQ_API_KEY?.slice(0, 5)
 );
 
 const app = express();

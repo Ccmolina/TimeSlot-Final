@@ -1,47 +1,36 @@
-import OpenAI from "openai";
+import Groq from "groq-sdk";
 
 let client = null;
 
-
 function getClient() {
   if (!client) {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
 
     if (!apiKey) {
-      console.error("❌ No existe OPENAI_API_KEY dentro del .env o no cargó");
-      throw new Error("Falta OPENAI_API_KEY");
+      console.error("❌ Falta GROQ_API_KEY en el .env");
+      throw new Error("Falta GROQ_API_KEY");
     }
 
-    console.log(
-      "🔑 Inicializando OpenAI con key que empieza en:",
-      apiKey.slice(0, 10)
-    );
-
-    client = new OpenAI({ apiKey });
+    console.log("🔑 Groq inicializado");
+    client = new Groq({ apiKey });
   }
 
   return client;
 }
 
-export async function responderIA(mensaje, contextoOpcional = {}) {
+export async function responderIA(mensaje) {
   try {
-    const openai = getClient();
+    const groq = getClient();
 
-    const respuesta = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
+    const respuesta = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant", // ✅ Modelo nuevo GRATIS y funcionando
       messages: [
         {
           role: "system",
           content:
-            "Sos un asistente virtual llamado TimeSlotBot. " +
-            "Contestás siempre en español, breve y claro. " +
-            "Trabajás para una app de reservas médicas TimeSlot. " +
-            "Si el usuario quiere reservar, decile que escriba 'quiero hacer una reserva'.",
+            "Sos un asistente virtual llamado TimeSlotBot. Contestás siempre en español, breve y claro. Ayudás a reservar turnos médicos.",
         },
-        {
-          role: "user",
-          content: mensaje,
-        },
+        { role: "user", content: mensaje },
       ],
     });
 
@@ -50,7 +39,7 @@ export async function responderIA(mensaje, contextoOpcional = {}) {
       "No pude generar una respuesta ahora."
     );
   } catch (err) {
-    console.error("❌ Error llamando a OpenAI:", err);
+    console.error("❌ Error con Groq:", err);
     return "Ahora mismo no puedo responder como asistente inteligente 😓. Probá de nuevo en un ratito.";
   }
 }
