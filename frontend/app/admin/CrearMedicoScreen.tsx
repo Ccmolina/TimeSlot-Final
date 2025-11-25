@@ -12,12 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-<<<<<<< HEAD
 import { api } from "../../lib/api";
-import { useRouter } from "expo-router";
-=======
-import { api } from "../../lib/api"; 
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
+import { useRouter } from "expo-router"; // 👈 IMPORTANTE!
 
 interface Medico {
   id: number;
@@ -28,10 +24,8 @@ interface Medico {
 }
 
 export default function GestionMedicosScreen() {
-<<<<<<< HEAD
-  const router = useRouter(); 
-=======
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
+  const router = useRouter(); // 👈 Y lo inicializamos aquí
+
   const [name, setName] = useState("");
   const [last, setLast] = useState("");
   const [email, setEmail] = useState("");
@@ -134,13 +128,7 @@ export default function GestionMedicosScreen() {
     if (!confirmar) return;
 
     try {
-<<<<<<< HEAD
       await api(`/api/usuarios/${id}`, { method: "DELETE" });
-=======
-      await api(`/api/usuarios/${id}`, {
-        method: "DELETE",
-      });
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 
       setMedicos(prev => prev.filter(m => m.id !== id));
       Alert.alert("Eliminado", "Médico eliminado");
@@ -217,10 +205,6 @@ export default function GestionMedicosScreen() {
 
           <View style={{ marginTop: 30, width: 340 }}>
             <Text style={s.title}>Lista de Médicos</Text>
-<<<<<<< HEAD
-=======
-
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
             {medicos.length === 0 ? (
               <Text style={{ textAlign: "center", color: "#777" }}>No hay médicos registrados</Text>
             ) : (
@@ -245,8 +229,8 @@ export default function GestionMedicosScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-<<<<<<< HEAD
 
+      {/* Bottom Bar Navigation */}
       <View style={s.bottomBar}>
         <TouchableOpacity onPress={() => router.replace("/admin/InformesScreen")} style={s.bottomBtn}>
           <Text style={s.bottomIcon}>📊</Text>
@@ -267,17 +251,11 @@ export default function GestionMedicosScreen() {
 
       <View style={s.bottomLeft} />
       <View style={s.bottomRight} />
-=======
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
     </View>
   );
 }
 
-<<<<<<< HEAD
-export const s = StyleSheet.create({
-=======
 const s = StyleSheet.create({
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
   container: { flex: 1, backgroundColor: "#fff", alignItems: "center" },
   header: {
     backgroundColor: "#0E3A46",
@@ -342,7 +320,6 @@ const s = StyleSheet.create({
   deleteBtn: {},
   editText: { fontSize: 18 },
   deleteText: { fontSize: 18 },
-<<<<<<< HEAD
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -376,6 +353,4 @@ const s = StyleSheet.create({
     backgroundColor: "#0E3A46",
     borderTopLeftRadius: 80,
   },
-=======
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 });

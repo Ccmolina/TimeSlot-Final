@@ -26,10 +26,6 @@ interface Servicio {
   id: number;
   nombre: string;
   duracion_min: number;
-<<<<<<< HEAD
-=======
-  id: number;
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 }
 
 export default function HorarioServicioScreen() {
