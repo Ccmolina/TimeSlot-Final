@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE = "http://192.168.12.197:4000";
+const BASE = "http://10.8.54.121:4000";
 
 console.log("🔎 BASE =", BASE);
 
