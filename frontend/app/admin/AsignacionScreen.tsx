@@ -1,13 +1,8 @@
 import { Picker } from '@react-native-picker/picker';
 import React, { useEffect, useState } from 'react';
-<<<<<<< HEAD
 import { Alert, Button, FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { api } from '../../lib/api';
 import { useRouter } from "expo-router";
-=======
-import { Alert, Button, FlatList, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { api } from '../../lib/api';
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 
 type Servicio = {
   servicio_id: number;
@@ -16,11 +11,8 @@ type Servicio = {
   nombre: string;
   descripcion: string;
   duracion_min: number;
-<<<<<<< HEAD
-=======
   name?: string;
   last?: string;
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 };
 
 type Medico = {
@@ -30,10 +22,7 @@ type Medico = {
 };
 
 export default function AsignacionesScreen() {
-<<<<<<< HEAD
   const router = useRouter(); 
-=======
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [medicos, setMedicos] = useState<Medico[]>([]);
   const [selectedMedicos, setSelectedMedicos] = useState<{ [key: number]: number }>({});
@@ -41,22 +30,10 @@ export default function AsignacionesScreen() {
   const fetchServicios = async () => {
     try {
       const res = await api<{ ok: boolean; data: Servicio[] }>('/api/servicios');
-<<<<<<< HEAD
       if (res.ok) {
         setServicios(res.data);
         const initial: { [key: number]: number } = {};
         res.data.forEach((s) => { initial[s.servicio_id] = s.user_id || 0; });
-=======
-
-      if (res.ok) {
-        setServicios(res.data);
-
-        const initial: { [key: number]: number } = {};
-        res.data.forEach((s) => {
-          initial[s.servicio_id] = s.user_id || 0;
-        });
-
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
         setSelectedMedicos(initial);
       }
     } catch (err: any) {
@@ -80,36 +57,25 @@ export default function AsignacionesScreen() {
 
   const asignarMedico = async (servicio_id: number) => {
     const usuario_id = selectedMedicos[servicio_id];
-<<<<<<< HEAD
-    if (!usuario_id || usuario_id === 0) { Alert.alert('Error', 'Seleccione un médico'); return; }
-=======
-
-    if (!usuario_id || usuario_id === 0) {
-      Alert.alert('Error', 'Seleccione un médico');
-      return;
+    if (!usuario_id || usuario_id === 0) { 
+      Alert.alert('Error', 'Seleccione un médico'); 
+      return; 
     }
 
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
     try {
       const res = await api<{ ok: boolean; msg: string }>('/api/servicios/asignar', {
         method: 'PUT',
         body: { servicio_id, usuario_id },
       });
-<<<<<<< HEAD
-      if (res.ok) { Alert.alert('Éxito', res.msg || 'Médico asignado correctamente'); fetchServicios(); }
-=======
-
-      if (res.ok) {
-        Alert.alert('Éxito', res.msg || 'Médico asignado correctamente');
-        fetchServicios();
+      if (res.ok) { 
+        Alert.alert('Éxito', res.msg || 'Médico asignado correctamente'); 
+        fetchServicios(); 
       }
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
     } catch (err: any) {
       Alert.alert('Error', 'No se pudo asignar el médico');
     }
   };
 
-<<<<<<< HEAD
   const renderItem = ({ item }: { item: Servicio }) => {
     const medicoAsignado = medicos.find((m) => m.usuario_id === item.user_id);
     return (
@@ -139,50 +105,6 @@ export default function AsignacionesScreen() {
       </View>
     );
   };
-=======
-const renderItem = ({ item }: { item: Servicio }) => {
-  const medicoAsignado = medicos.find((m) => m.usuario_id === item.user_id);
-
-  return (
-    <View style={s.card}>
-      <Text style={s.title}>{item.nombre}</Text>
-      <Text style={s.text}>{item.descripcion}</Text>
-      <Text style={s.text}>Duración: {item.duracion_min} min</Text>
-
-      <Text style={s.text}>
-        Médico actual:{" "}
-        <Text style={s.highlight}>
-          {medicoAsignado
-            ? `${medicoAsignado.nombre_usuario} ${medicoAsignado.apellido}`
-            : "Sin asignar"}
-        </Text>
-      </Text>
-
-      <Picker
-        selectedValue={selectedMedicos[item.servicio_id]}
-        onValueChange={(value) =>
-          setSelectedMedicos((prev) => ({ ...prev, [item.servicio_id]: value }))
-        }
-        style={s.picker}
-      >
-        <Picker.Item label="No asignado" value={0} />
-        {medicos.map((m) => (
-          <Picker.Item key={m.usuario_id} value={m.usuario_id} label={`${m.nombre_usuario} ${m.apellido}`} />
-        ))}
-      </Picker>
-
-      <View style={s.btnContainer}>
-        <Button
-          title="Asignar Médico"
-          color="#0E3A46"
-          onPress={() => asignarMedico(item.servicio_id)}
-        />
-      </View>
-    </View>
-  );
-};
-
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 
   return (
     <View style={s.container}>
@@ -192,11 +114,7 @@ const renderItem = ({ item }: { item: Servicio }) => {
         <Text style={s.h2}>de Servicios</Text>
       </View>
 
-<<<<<<< HEAD
       <ScrollView contentContainerStyle={{ paddingVertical: 16, paddingBottom: 120 }}>
-=======
-      <ScrollView contentContainerStyle={{ paddingVertical: 16 }}>
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
         <FlatList
           data={servicios}
           keyExtractor={(item) => item.servicio_id.toString()}
@@ -205,7 +123,6 @@ const renderItem = ({ item }: { item: Servicio }) => {
         />
       </ScrollView>
 
-<<<<<<< HEAD
       <View style={s.bottomBar}>
         <TouchableOpacity onPress={() => router.replace("/admin/InformesScreen")} style={s.bottomBtn}>
           <Text style={s.bottomIcon}>📊</Text>
@@ -224,8 +141,6 @@ const renderItem = ({ item }: { item: Servicio }) => {
         </TouchableOpacity>
       </View>
 
-=======
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
       <View style={s.bottomLeft} />
       <View style={s.bottomRight} />
     </View>
@@ -235,9 +150,6 @@ const renderItem = ({ item }: { item: Servicio }) => {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', alignItems: 'center' },
 
-<<<<<<< HEAD
-  header: { backgroundColor: '#0E3A46', width: '130%', height: 200, alignItems: 'center', justifyContent: 'center', borderBottomLeftRadius: 300, borderBottomRightRadius: 300 },
-=======
   header: {
     backgroundColor: '#0E3A46',
     width: '130%',
@@ -247,15 +159,11 @@ const s = StyleSheet.create({
     borderBottomLeftRadius: 300,
     borderBottomRightRadius: 300,
   },
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 
   logo: { width: 64, height: 64, marginBottom: 6 },
   h1: { color: '#FFFFFF', fontSize: 32, fontWeight: '800' },
   h2: { color: '#E6F1F4', fontSize: 16, fontWeight: '700' },
 
-<<<<<<< HEAD
-  card: { width: 340, backgroundColor: '#fff', marginVertical: 10, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', padding: 16, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4, alignSelf: 'center' },
-=======
   card: {
     width: 340,
     backgroundColor: '#fff',
@@ -271,13 +179,11 @@ const s = StyleSheet.create({
     elevation: 4,
     alignSelf: 'center',
   },
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 
   title: { color: '#0E3A46', fontSize: 18, fontWeight: '700', marginBottom: 4 },
   text: { color: '#111827', fontSize: 14, marginBottom: 2 },
   highlight: { fontWeight: '700', color: '#0E3A46' },
 
-<<<<<<< HEAD
   picker: { backgroundColor: '#F9FAFB', borderRadius: 8, marginVertical: 8 },
   btnContainer: { marginTop: 8 },
 
@@ -287,33 +193,4 @@ const s = StyleSheet.create({
   bottomBar: { position: 'absolute', bottom: 0, flexDirection: 'row', justifyContent: 'space-around', width: '100%', backgroundColor: '#0E3A46', paddingVertical: 10 },
   bottomBtn: { alignItems: 'center', justifyContent: 'center' },
   bottomIcon: { fontSize: 24, color: '#fff' },
-=======
-  picker: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    marginVertical: 8,
-  },
-
-  btnContainer: { marginTop: 8 },
-
-  bottomLeft: {
-    position: 'absolute',
-    bottom: 0,
-    left: -10,
-    width: 90,
-    height: 80,
-    backgroundColor: '#0E3A46',
-    borderTopRightRadius: 80,
-  },
-
-  bottomRight: {
-    position: 'absolute',
-    bottom: 0,
-    right: -10,
-    width: 90,
-    height: 80,
-    backgroundColor: '#0E3A46',
-    borderTopLeftRadius: 80,
-  },
->>>>>>> 8cabad5b2d7cfad13b69eb377d2393c91d370e22
 });
