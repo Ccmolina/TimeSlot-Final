@@ -13,6 +13,7 @@ import {
   Platform
 } from "react-native";
 import { api } from "../../lib/api";
+import { router } from "expo-router";
 
 interface Horario {
   id: number;
@@ -166,12 +167,27 @@ export default function HorarioServicioScreen() {
             ))}
 
             <TouchableOpacity style={s.primaryBtn} onPress={handleGuardar} disabled={guardando}>
-              {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>Guardar y Generar Franjas</Text>}
+              {guardando ? <ActivityIndicator color="#fff" /> :
+                <Text style={s.primaryBtnText}>Guardar y Generar Franjas</Text>}
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* 🔥 Barra inferior */}
+      <View style={s.bottomBar}>
+        <TouchableOpacity onPress={() => router.replace("/medico/HomeScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🏠</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/medico/Horario_servicioScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🕒</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/medico/InformesScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>📅</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Estos fondo decorativos pueden quedar */}
       <View style={s.bottomLeft} />
       <View style={s.bottomRight} />
     </View>
@@ -200,6 +216,26 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderColor: "#D1D5DB", padding: 6, width: 100, textAlign: "center", borderRadius: 8 },
   primaryBtn: { backgroundColor: "#0E3A46", paddingVertical: 12, borderRadius: 10, marginTop: 14, alignItems: "center" },
   primaryBtnText: { color: "#fff", fontWeight: "700" },
+
+  // 🔥 Estilos de la barra inferior
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    backgroundColor: "#0E3A46",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingVertical: 14
+  },
+  bottomBtn: {
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  bottomIcon: {
+    fontSize: 26,
+    color: "#fff"
+  },
+
   bottomLeft: { position: "absolute", bottom: 0, left: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopRightRadius: 80 },
   bottomRight: { position: "absolute", bottom: 0, right: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopLeftRadius: 80 },
 });

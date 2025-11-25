@@ -48,7 +48,6 @@ export default function Home() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [openAvisos, setOpenAvisos] = useState(false);
 
-  // 🔹 Cargar usuario y registrar push token
   useEffect(() => {
     const cargarDatosYToken = async () => {
       try {
@@ -89,7 +88,6 @@ export default function Home() {
 
         console.log("📱 Expo pushToken:", pushToken);
 
-        // ✅ Enviar push token usando api
         await api("/notificaciones/token", {
           method: "POST",
           body: { pushToken },
@@ -102,11 +100,10 @@ export default function Home() {
     cargarDatosYToken();
   }, []);
 
-  // 🔹 Cargar reservas
   useEffect(() => {
     const cargarReservas = async () => {
       try {
-        const data = await api("/reservas"); // GET por defecto
+        const data = await api("/reservas");
         syncFromBackend(data);
       } catch (e) {
         console.log("Error cargando reservas:", e);
@@ -116,7 +113,6 @@ export default function Home() {
     cargarReservas();
   }, [syncFromBackend]);
 
-  // 🔹 Logout
   const logout = async () => {
     try {
       await SecureStore.deleteItemAsync("token");
@@ -129,7 +125,6 @@ export default function Home() {
     }
   };
 
-  // 🔹 Elegir avatar
   const handlePickAvatar = async () => {
     try {
       const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
@@ -180,7 +175,6 @@ export default function Home() {
     }
   };
 
-  // 🔹 Reservas próximas y avisos
   const reservasVigentes = useMemo(
     () => reservas.filter((r) => daysDiffFromToday(r.fechaISO) >= 0),
     [reservas]
@@ -197,15 +191,12 @@ export default function Home() {
     [reservas]
   );
 
-  // 🔹 Render principal
   return (
     <SafeAreaView style={s.safeArea}>
       <View style={s.container}>
-        {/* Fondos decorativos */}
         <View style={s.bgCircleTop} />
         <View style={s.bgCircleMid} />
 
-        {/* Header */}
         <View style={s.header}>
           <TouchableOpacity onPress={handlePickAvatar} style={s.avatarWrapper}>
             {avatarUri ? (
@@ -237,7 +228,6 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Título y estadísticas */}
         <View style={s.titleWrapper}>
           <View style={s.titleRow}>
             <View style={s.titleLine} />
@@ -254,7 +244,6 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Lista de reservas */}
         <View style={s.cardListWrapper}>
           <View style={s.cardList}>
             <View style={s.tableHeader}>
@@ -290,25 +279,18 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Barra inferior */}
         <View style={s.bottomBar}>
-          <TouchableOpacity onPress={() => router.replace("/home")} style={s.bottomBtn}>
+          <TouchableOpacity onPress={() => router.replace("/medico/HomeScreen")} style={s.bottomBtn}>
             <Text style={s.bottomIcon}>🏠</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push("/historial")} style={s.bottomBtn}>
+          <TouchableOpacity onPress={() => router.push("/medico/Horario_servicioScreen")} style={s.bottomBtn}>
             <Text style={s.bottomIcon}>🕒</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push("/reservas/nueva")} style={s.bottomBtn}>
+          <TouchableOpacity onPress={() => router.push("/medico/InformesScreen")} style={s.bottomBtn}>
             <Text style={s.bottomIcon}>📅</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Chatbot */}
-        <TouchableOpacity onPress={() => router.push("/chatbot")} style={s.chatBotBtn}>
-          <Text style={s.chatIcon}>🤖</Text>
-        </TouchableOpacity>
-
-        {/* Modal avisos */}
         <Modal visible={openAvisos} transparent animationType="fade" onRequestClose={() => setOpenAvisos(false)}>
           <View style={s.modalBackdrop}>
             <View style={s.modalCard}>

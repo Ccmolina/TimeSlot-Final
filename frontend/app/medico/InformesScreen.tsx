@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BarChart, PieChart } from "react-native-chart-kit";
 import { api } from "../../lib/api";
+import { TouchableOpacity } from "react-native";
+import { router } from "expo-router";
 
 interface ReservaData {
   fecha: string;
@@ -86,7 +88,7 @@ export default function InformesScreen() {
         <Text style={s.h2}>Estadísticas del negocio</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 30 }}>
+      <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 100 }}>
         {/* Reservas por día */}
         <View style={s.card}>
           <Text style={s.title}>Reservas Confirmadas por Día</Text>
@@ -173,8 +175,21 @@ export default function InformesScreen() {
         </View>
       </ScrollView>
 
-      <View style={s.bottomLeft} />
-      <View style={s.bottomRight} />
+      {/* 🔹 Bottom Bar */}
+      <View style={s.bottomBar}>
+        <TouchableOpacity onPress={() => router.replace("/medico/HomeScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🏠</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/medico/Horario_servicioScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🕒</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/medico/InformesScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>📅</Text>
+        </TouchableOpacity>
+      </View>
+
     </View>
   );
 }
@@ -182,13 +197,34 @@ export default function InformesScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", alignItems: "center" },
   header: { backgroundColor: "#0E3A46", width: "130%", height: 240, alignItems: "center", justifyContent: "center", borderBottomLeftRadius: 300, borderBottomRightRadius: 300 },
-  h1: { color: "#FFFFFF", fontSize: 30, fontWeight: "800", letterSpacing: 0.3 },
+  h1: { color: "#FFFFFF", fontSize: 30, fontWeight: "800" },
   h2: { color: "#E6F1F4", fontSize: 15, fontWeight: "600", marginTop: 4 },
   card: { width: 340, backgroundColor: "#fff", marginTop: 30, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 16, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
   title: { fontSize: 18, fontWeight: "700", marginBottom: 10, textAlign: "center", color: "#0E3A46" },
   text: { textAlign: "center", color: "#666", marginTop: 10 },
   resumen: { marginTop: 16, gap: 6 },
   bold: { fontWeight: "600", color: "#0E3A46" },
-  bottomLeft: { position: "absolute", bottom: 0, left: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopRightRadius: 80 },
-  bottomRight: { position: "absolute", bottom: 0, right: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopLeftRadius: 80 },
+
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: "#0E3A46",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: 5,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  bottomBtn: {
+    flex: 1,
+    alignItems: "center",
+  },
+  bottomIcon: {
+    fontSize: 26,
+    color: "#fff",
+  },
 });
