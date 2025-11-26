@@ -1,9 +1,8 @@
-
-import { Router } from "express";
+import express from "express";
 import jwt from "jsonwebtoken";
 import { pool } from "./db.js";
 
-const r = Router();
+const r = express.Router();
 
 
 function auth(req, res, next) {
@@ -18,69 +17,51 @@ function auth(req, res, next) {
   }
 }
 
-
+//reservas del paciente
 r.get("/", auth, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, area, profesional, fechaISO, hora, modalidad FROM reservas_chatbot WHERE user_id = ?",
+      `SELECT r.id, r.estado, 
+              hs.fecha, hs.hora_inicio, hs.hora_fin,
+              s.nombre AS servicio, u.name AS medico_name, u.last AS medico_last
+       FROM reservas r
+       JOIN horario_servicio hs ON r.horario_servicio_id = hs.id
+       JOIN servicios s ON hs.servicio_id = s.id
+       JOIN users u ON s.user_id = u.id
+       WHERE r.user_id = ?
+       ORDER BY hs.fecha ASC, hs.hora_inicio ASC`,
       [req.user.id]
     );
 
-    const reservas = rows.map((r) => ({
-      id: String(r.id),
-      userId: req.user.id,
-      area: r.area,
-      profesional: r.profesional,
-      fechaISO: r.fechaISO,
-      hora: r.hora,
-      modalidad: r.modalicad || "Presencial",
-    }));
-
-    res.json(reservas);
+    res.json(rows);
   } catch (e) {
-    console.error("Error cargando reservas:", e);
+    console.error("Error cargando reservas paciente:", e);
     res.status(500).json({ error: "Error al cargar reservas" });
   }
 });
 
-r.post("/", auth, async (req, res) => {
+r.get("/medico/:medicoId", async (req, res) => {
+  const { medicoId } = req.params;
+
   try {
-    const { area, profesional, fechaISO, hora, modalidad } = req.body || {};
-
-    if (!area || !profesional || !fechaISO || !hora) {
-      return res.status(400).json({ error: "Datos incompletos" });
-    }
-
-    const [result] = await pool.query(
-      `INSERT INTO reservas_chatbot 
-        (user_id, area, profesional, fechaISO, hora, modalidad)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        req.user.id,
-        area,
-        profesional,
-        fechaISO,
-        hora,
-        modalidad || "Presencial",
-      ]
+    const [rows] = await pool.query(
+      `SELECT r.id, r.estado, r.fecha_creacion,
+              hs.fecha, hs.hora_inicio, hs.hora_fin,
+              s.nombre AS servicio,
+              u.id AS paciente_id, u.name AS paciente_name, u.last AS paciente_last
+       FROM reservas r
+       JOIN horario_servicio hs ON r.horario_servicio_id = hs.id
+       JOIN servicios s ON hs.servicio_id = s.id
+       JOIN users u ON r.user_id = u.id
+       WHERE s.user_id = ?
+       ORDER BY hs.fecha ASC, hs.hora_inicio ASC`,
+      [medicoId]
     );
 
-    const insertId = result.insertId;
-
-    const nueva = {
-      id: String(insertId),
-      userId: req.user.id,
-      area,
-      profesional,
-      fechaISO,
-      hora,
-      modalidad: modalidad || "Presencial",
-    };
-
-    res.status(201).json(nueva);
+    res.json(rows);
   } catch (e) {
-    console.error("Error creando reserva:", e);
-    res.status(500).json({ error: "Error al crear reserva" });
+    console.error("Error cargando reservas médico:", e);
+    res.status(500).json({ error: "Error al obtener reservas del médico" });
   }
 });
 

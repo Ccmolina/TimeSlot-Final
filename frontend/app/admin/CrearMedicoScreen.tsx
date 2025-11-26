@@ -12,7 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api } from "../../lib/api"; 
+import { api } from "../../lib/api";
+import { useRouter } from "expo-router"; // 👈 IMPORTANTE!
 
 interface Medico {
   id: number;
@@ -23,6 +24,8 @@ interface Medico {
 }
 
 export default function GestionMedicosScreen() {
+  const router = useRouter(); // 👈 Y lo inicializamos aquí
+
   const [name, setName] = useState("");
   const [last, setLast] = useState("");
   const [email, setEmail] = useState("");
@@ -125,9 +128,7 @@ export default function GestionMedicosScreen() {
     if (!confirmar) return;
 
     try {
-      await api(`/api/usuarios/${id}`, {
-        method: "DELETE",
-      });
+      await api(`/api/usuarios/${id}`, { method: "DELETE" });
 
       setMedicos(prev => prev.filter(m => m.id !== id));
       Alert.alert("Eliminado", "Médico eliminado");
@@ -204,7 +205,6 @@ export default function GestionMedicosScreen() {
 
           <View style={{ marginTop: 30, width: 340 }}>
             <Text style={s.title}>Lista de Médicos</Text>
-
             {medicos.length === 0 ? (
               <Text style={{ textAlign: "center", color: "#777" }}>No hay médicos registrados</Text>
             ) : (
@@ -229,6 +229,28 @@ export default function GestionMedicosScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Bottom Bar Navigation */}
+      <View style={s.bottomBar}>
+        <TouchableOpacity onPress={() => router.replace("/admin/InformesScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>📊</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/admin/CrearMedicoScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>👨‍⚕️</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/admin/CrearServiciosScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🏥</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/admin/AsignacionScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🗂️</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={s.bottomLeft} />
+      <View style={s.bottomRight} />
     </View>
   );
 }
@@ -298,4 +320,37 @@ const s = StyleSheet.create({
   deleteBtn: {},
   editText: { fontSize: 18 },
   deleteText: { fontSize: 18 },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    backgroundColor: "#0E3A46",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  bottomBtn: { flex: 1, alignItems: "center" },
+  bottomIcon: { fontSize: 24, color: "#fff" },
+  bottomLeft: {
+    position: "absolute",
+    bottom: 0,
+    left: -10,
+    width: 90,
+    height: 80,
+    backgroundColor: "#0E3A46",
+    borderTopRightRadius: 80,
+  },
+  bottomRight: {
+    position: "absolute",
+    bottom: 0,
+    right: -10,
+    width: 90,
+    height: 80,
+    backgroundColor: "#0E3A46",
+    borderTopLeftRadius: 80,
+  },
 });

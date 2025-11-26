@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { api } from "../../lib/api";
+import { useRouter } from "expo-router";
 
 interface Servicio {
   servicio_id: number;
@@ -10,6 +22,8 @@ interface Servicio {
 }
 
 export default function GestionServiciosScreen() {
+  const router = useRouter();
+
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [duracion, setDuracion] = useState("");
@@ -81,13 +95,12 @@ export default function GestionServiciosScreen() {
     if (!confirmacion) return;
 
     try {
-      const res = await api<{ ok: boolean; msg: string }>(`/api/servicios/${id}`, { method: "DELETE" });
-      const data = await res.json();
+      const res = await api<{ ok: boolean; msg?: string; message?: string; error?: string }>(`/api/servicios/${id}`, { method: "DELETE" });
       if (res.ok) {
-        Alert.alert("Eliminado", data.message || "Servicio eliminado correctamente");
+        Alert.alert("Eliminado", res.message ?? res.msg ?? "Servicio eliminado correctamente");
         setServicios((prev) => prev.filter((s) => s.servicio_id !== id));
       } else {
-        Alert.alert("Error", data.error || "No se pudo eliminar el servicio");
+        Alert.alert("Error", res.error ?? "No se pudo eliminar el servicio");
       }
     } catch (error) {
       console.error(error);
@@ -117,7 +130,7 @@ export default function GestionServiciosScreen() {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, width: "100%" }}>
-        <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
           <View style={s.card}>
             <Text style={s.label}>Nombre:</Text>
             <TextInput style={s.input} placeholder="Ej: Odontología" value={nombre} onChangeText={setNombre} />
@@ -165,6 +178,25 @@ export default function GestionServiciosScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Bottom Bar */}
+      <View style={s.bottomBar}>
+        <TouchableOpacity onPress={() => router.replace("/admin/InformesScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>📊</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/admin/CrearMedicoScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>👨‍⚕️</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/admin/CrearServiciosScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🏥</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/admin/AsignacionScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🗂️</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={s.bottomLeft} />
       <View style={s.bottomRight} />
@@ -216,4 +248,15 @@ const s = StyleSheet.create({
   deleteText: { fontSize: 18 },
   bottomLeft: { position: "absolute", bottom: 0, left: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopRightRadius: 80 },
   bottomRight: { position: "absolute", bottom: 0, right: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopLeftRadius: 80 },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "100%",
+    backgroundColor: "#0E3A46",
+    paddingVertical: 10,
+  },
+  bottomBtn: { alignItems: "center", justifyContent: "center" },
+  bottomIcon: { fontSize: 24, color: "#fff" },
 });

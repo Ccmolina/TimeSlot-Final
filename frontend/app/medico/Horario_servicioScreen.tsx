@@ -10,115 +10,121 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from "react-native";
 import { api } from "../../lib/api";
+import { router } from "expo-router";
 
-interface Horario {
-  id: number;
+interface DiaAPI {
   dia_semana: string;
-  hora_inicio: string;
-  hora_fin: string;
-  abierto: boolean;
+  medico: {
+    id: number | null;
+    hora_inicio: string | null;
+    hora_fin: string | null;
+    abierto: boolean;
+  } | null;
+  negocio_abierto: boolean;
+  negocio_hora_inicio: string | null;
+  negocio_hora_fin: string | null;
 }
 
-interface Servicio {
-  id: number;
-  nombre: string;
-  duracion_min: number;
-}
+const DIAS = [
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+  "domingo",
+];
 
-export default function HorarioServicioScreen() {
-  const [horarios, setHorarios] = useState<Horario[]>([]);
-  const [servicios, setServicios] = useState<Servicio[]>([]);
+export default function HorarioMedicoScreen() {
+  const [dias, setDias] = useState<DiaAPI[]>([]);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [h, s] = await Promise.all([
-          api<Horario[]>("/api/horarios?user_id=1"),
-          api<Servicio[]>("/api/servicios?user_id=1")
-        ]);
-        setHorarios(Array.isArray(h) ? h : []);
-        setServicios(Array.isArray(s) ? s : []);
+        const res = await api<{ ok: boolean; data: DiaAPI[] }>(
+          "/api/horariosm/horarioo"
+        );
+
+        if (!res || !res.ok) {
+          throw new Error("Error al cargar horarios");
+        }
+
+        setDias(res.data);
       } catch (err: any) {
         Alert.alert("Error", err.message || "No se pudieron cargar los datos");
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  const handleToggleAbierto = (id: number, value: boolean) => {
-    setHorarios(prev => prev.map(h => h.id === id ? { ...h, abierto: value } : h));
-  };
-
-  const handleChangeHora = (id: number, campo: "hora_inicio" | "hora_fin", valor: string) => {
-    setHorarios(prev => prev.map(h => h.id === id ? { ...h, [campo]: valor } : h));
-  };
-
-  const sumarMinutos = (hora: string, minutos: number) => {
-    const [h, m, s] = hora.split(":").map(Number);
-    const date = new Date();
-    date.setHours(h, m + minutos, s);
-    return `${String(date.getHours()).padStart(2,"0")}:${String(date.getMinutes()).padStart(2,"0")}:${String(date.getSeconds()).padStart(2,"0")}`;
-  };
-
-  const generarFranjas = async () => {
-    try {
-      const franjas: any[] = [];
-      const hoy = new Date();
-
-      for (let i = 0; i < 7; i++) {
-        const dia = new Date();
-        dia.setDate(hoy.getDate() + i);
-        const diaNum = dia.getDay();
-
-        const horariosDelDia = horarios.filter(h => {
-          const map: Record<string, number> = {
-            domingo: 0, lunes: 1, martes: 2, miércoles: 3,
-            jueves: 4, viernes: 5, sábado: 6
-          };
-          return h.abierto && map[h.dia_semana] === diaNum;
-        });
-
-        for (const h of horariosDelDia) {
-          for (const s of servicios) {
-            let horaActual = h.hora_inicio;
-            while (horaActual < h.hora_fin) {
-              const horaFin = sumarMinutos(horaActual, s.duracion_min);
-              if (horaFin > h.hora_fin) break;
-              franjas.push({
-                servicio_id: s.id,
-                horario_id: h.id,
-                fecha: dia.toISOString().slice(0,10),
-                hora_inicio: horaActual,
-                hora_fin: horaFin
-              });
-              horaActual = horaFin;
+  const toggleAbierto = (dia: string, value: boolean) => {
+    setDias((prev) =>
+      prev.map((d) =>
+        d.dia_semana === dia
+          ? {
+              ...d,
+              medico: {
+                id: d.medico?.id ?? null,
+                hora_inicio: d.medico?.hora_inicio ?? "08:00:00",
+                hora_fin: d.medico?.hora_fin ?? "17:00:00",
+                abierto: value,
+              },
             }
-          }
-        }
-      }
-
-      await api("/api/horario_servicio/generar-franjas", { method: "POST", body: franjas });
-      Alert.alert("Éxito", "Franjas generadas correctamente");
-    } catch (e: any) {
-      Alert.alert("Error", e.message || "No se pudieron generar franjas");
-    }
+          : d
+      )
+    );
   };
 
-  const handleGuardar = async () => {
+  const setHora = (
+    dia: string,
+    campo: "hora_inicio" | "hora_fin",
+    valor: string
+  ) => {
+    setDias((prev) =>
+      prev.map((d) =>
+        d.dia_semana === dia
+          ? {
+              ...d,
+              medico: {
+                id: d.medico?.id ?? null,
+                hora_inicio:
+                  campo === "hora_inicio" ? valor : d.medico?.hora_inicio ?? "08:00:00",
+                hora_fin:
+                  campo === "hora_fin" ? valor : d.medico?.hora_fin ?? "17:00:00",
+                abierto: d.medico?.abierto ?? false,
+              },
+            }
+          : d
+      )
+    );
+  };
+
+  const guardarTodo = async () => {
     setGuardando(true);
     try {
-      await api("/api/horarios", { method: "PUT", body: horarios });
-      Alert.alert("Éxito", "Horarios guardados correctamente");
-      await generarFranjas();
-    } catch (e: any) {
-      Alert.alert("Error", e.message);
+      for (const d of dias) {
+        const medico = d.medico;
+        await api("/api/horariosm/guardar", {
+          method: "POST",
+          body: {
+            dia_semana: d.dia_semana,
+            hora_inicio: medico?.hora_inicio ?? null,
+            hora_fin: medico?.hora_fin ?? null,
+            abierto: medico?.abierto ?? false,
+          },
+        });
+      }
+      Alert.alert("Éxito", "Horarios actualizados correctamente 🎉");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "No se pudo guardar");
     } finally {
       setGuardando(false);
     }
@@ -130,7 +136,7 @@ export default function HorarioServicioScreen() {
     <View style={s.container}>
       <View style={s.header}>
         <Text style={s.h1}>Horario</Text>
-        <Text style={s.h2}>de tu Servicio</Text>
+        <Text style={s.h2}>del Médico</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -139,38 +145,80 @@ export default function HorarioServicioScreen() {
       >
         <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 24 }}>
           <View style={s.card}>
-            <Text style={s.sectionTitle}>🕓 Configura tus horarios y genera franjas</Text>
+            <Text style={s.sectionTitle}>🕓 Configura tus horarios</Text>
 
-            {horarios.map(h => (
-              <View key={h.id} style={s.dayCard}>
-                <Text style={s.dayTitle}>{h.dia_semana.toUpperCase()}</Text>
+            {dias.map((d) => {
+              const medico = d.medico ?? { id: null, hora_inicio: "08:00:00", hora_fin: "17:00:00", abierto: false };
+              const negocioAbierto = !!d.negocio_abierto;
 
-                <View style={s.row}>
-                  <Text style={s.label}>{h.abierto ? "Abierto" : "Cerrado"}:</Text>
-                  <Switch value={h.abierto} onValueChange={v => handleToggleAbierto(h.id,v)} />
+              return (
+                <View key={d.dia_semana} style={s.dayCard}>
+                  <Text style={s.dayTitle}>{d.dia_semana.toUpperCase()}</Text>
+
+                  <View style={s.row}>
+                    <Text style={s.label}>
+                      {medico.abierto ? "Abierto" : "Cerrado"}:
+                    </Text>
+
+                    <Switch
+                      value={medico.abierto}
+                      onValueChange={(v) => toggleAbierto(d.dia_semana, v)}
+                      disabled={!negocioAbierto}
+                    />
+                  </View>
+
+                  {!negocioAbierto && (
+                    <Text style={{ color: "#B91C1C", marginTop: 6 }}>
+                      El negocio está cerrado este día (no podés abrir).
+                    </Text>
+                  )}
+
+                  {medico.abierto && (
+                    <>
+                      <View style={s.row}>
+                        <Text style={s.label}>Inicio:</Text>
+                        <TextInput
+                          style={s.input}
+                          value={medico.hora_inicio ?? ""}
+                          onChangeText={(v) => setHora(d.dia_semana, "hora_inicio", v)}
+                        />
+                      </View>
+
+                      <View style={s.row}>
+                        <Text style={s.label}>Fin:</Text>
+                        <TextInput
+                          style={s.input}
+                          value={medico.hora_fin ?? ""}
+                          onChangeText={(v) => setHora(d.dia_semana, "hora_fin", v)}
+                        />
+                      </View>
+                    </>
+                  )}
                 </View>
+              );
+            })}
 
-                {h.abierto && (
-                  <>
-                    <View style={s.row}>
-                      <Text style={s.label}>Inicio:</Text>
-                      <TextInput style={s.input} value={h.hora_inicio} onChangeText={v => handleChangeHora(h.id,"hora_inicio",v)} />
-                    </View>
-                    <View style={s.row}>
-                      <Text style={s.label}>Fin:</Text>
-                      <TextInput style={s.input} value={h.hora_fin} onChangeText={v => handleChangeHora(h.id,"hora_fin",v)} />
-                    </View>
-                  </>
-                )}
-              </View>
-            ))}
-
-            <TouchableOpacity style={s.primaryBtn} onPress={handleGuardar} disabled={guardando}>
-              {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>Guardar y Generar Franjas</Text>}
+            <TouchableOpacity style={s.primaryBtn} onPress={guardarTodo} disabled={guardando}>
+              {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>Guardar Horarios</Text>}
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Barra inferior */}
+      <View style={s.bottomBar}>
+        <TouchableOpacity onPress={() => router.replace("/medico/HomeScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🏠</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/medico/Horario_medicoScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🕒</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push("/medico/InformesScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>📅</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={s.bottomLeft} />
       <View style={s.bottomRight} />
@@ -189,9 +237,17 @@ const s = StyleSheet.create({
     borderBottomLeftRadius: 300,
     borderBottomRightRadius: 300,
   },
-  h1: { color: "#fff", fontSize: 36, fontWeight: "800", letterSpacing: 0.3 },
-  h2: { color: "#E6F1F4", fontSize: 16, fontWeight: "700", marginTop: 2 },
-  card: { width: 340, backgroundColor: "#fff", marginTop: 50, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 16 },
+  h1: { color: "#fff", fontSize: 36, fontWeight: "800" },
+  h2: { color: "#E6F1F4", fontSize: 16, fontWeight: "700" },
+  card: {
+    width: 340,
+    backgroundColor: "#fff",
+    marginTop: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 16,
+  },
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#0E3A46", marginBottom: 12, textAlign: "center" },
   dayCard: { backgroundColor: "#F9FAFB", borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#E5E7EB" },
   dayTitle: { fontWeight: "700", color: "#0E3A46", marginBottom: 6 },
@@ -200,6 +256,9 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderColor: "#D1D5DB", padding: 6, width: 100, textAlign: "center", borderRadius: 8 },
   primaryBtn: { backgroundColor: "#0E3A46", paddingVertical: 12, borderRadius: 10, marginTop: 14, alignItems: "center" },
   primaryBtnText: { color: "#fff", fontWeight: "700" },
+  bottomBar: { position: "absolute", bottom: 0, width: "100%", backgroundColor: "#0E3A46", flexDirection: "row", justifyContent: "space-around", paddingVertical: 14 },
+  bottomBtn: { alignItems: "center", justifyContent: "center" },
+  bottomIcon: { fontSize: 26, color: "#fff" },
   bottomLeft: { position: "absolute", bottom: 0, left: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopRightRadius: 80 },
   bottomRight: { position: "absolute", bottom: 0, right: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopLeftRadius: 80 },
 });

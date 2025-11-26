@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, ScrollView, StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { BarChart, PieChart } from "react-native-chart-kit";
 import { api } from "../../lib/api";
+import { useRouter } from "expo-router";
 
 interface ReservaData {
   fecha: string;
@@ -19,6 +20,7 @@ interface MedicoData {
 }
 
 export default function InformesScreen() {
+  const router = useRouter();
   const [reservas, setReservas] = useState<ReservaData[]>([]);
   const [cancelaciones, setCancelaciones] = useState<CancelacionData[]>([]);
   const [porMedico, setPorMedico] = useState<MedicoData[]>([]);
@@ -84,7 +86,7 @@ export default function InformesScreen() {
         <Text style={s.h2}>Estadísticas del negocio</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 30 }}>
+      <ScrollView contentContainerStyle={{ alignItems: "center", paddingBottom: 120 }}>
         {/* Reservas por día */}
         <View style={s.card}>
           <Text style={s.title}>Reservas Confirmadas por Día</Text>
@@ -96,8 +98,6 @@ export default function InformesScreen() {
                 height={220}
                 fromZero
                 showValuesOnTopOfBars
-                yAxisLabel=""
-                yAxisSuffix=""
                 chartConfig={{
                   backgroundGradientFrom: "#fff",
                   backgroundGradientTo: "#fff",
@@ -121,6 +121,8 @@ export default function InformesScreen() {
 
         {/* Cancelaciones */}
         <View style={s.card}>
+          <Text style={s.title}>Cancelaciones</Text>
+          {cancelaciones.length > 0 ? (
             <BarChart
               data={{
                 labels: cancelaciones.map((c) => new Date(c.fecha).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })),
@@ -129,8 +131,6 @@ export default function InformesScreen() {
               width={Dimensions.get("window").width - 60}
               height={220}
               fromZero
-              yAxisLabel=""
-              yAxisSuffix=""
               chartConfig={{
                 backgroundGradientFrom: "#fff",
                 backgroundGradientTo: "#fff",
@@ -143,7 +143,7 @@ export default function InformesScreen() {
             />
           ) : (
             <Text style={s.text}>No hay datos de cancelaciones</Text>
-          )
+          )}
         </View>
 
         {/* Reservas por médico */}
@@ -171,6 +171,22 @@ export default function InformesScreen() {
         </View>
       </ScrollView>
 
+      {/* Bottom Bar */}
+      <View style={s.bottomBar}>
+        <TouchableOpacity onPress={() => router.replace("/admin/InformesScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>📊</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/admin/CrearMedicoScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>👨‍⚕️</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/admin/CrearServiciosScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🏥</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/admin/AsignacionScreen")} style={s.bottomBtn}>
+          <Text style={s.bottomIcon}>🗂️</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={s.bottomLeft} />
       <View style={s.bottomRight} />
     </View>
@@ -179,14 +195,51 @@ export default function InformesScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", alignItems: "center" },
-  header: { backgroundColor: "#0E3A46", width: "130%", height: 240, alignItems: "center", justifyContent: "center", borderBottomLeftRadius: 300, borderBottomRightRadius: 300 },
+  header: {
+    backgroundColor: "#0E3A46",
+    width: "130%",
+    height: 240,
+    alignItems: "center",
+    justifyContent: "center",
+    borderBottomLeftRadius: 300,
+    borderBottomRightRadius: 300,
+  },
   h1: { color: "#FFFFFF", fontSize: 30, fontWeight: "800", letterSpacing: 0.3 },
   h2: { color: "#E6F1F4", fontSize: 15, fontWeight: "600", marginTop: 4 },
-  card: { width: 340, backgroundColor: "#fff", marginTop: 30, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 16, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  card: {
+    width: 340,
+    backgroundColor: "#fff",
+    marginTop: 30,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
   title: { fontSize: 18, fontWeight: "700", marginBottom: 10, textAlign: "center", color: "#0E3A46" },
   text: { textAlign: "center", color: "#666", marginTop: 10 },
   resumen: { marginTop: 16, gap: 6 },
   bold: { fontWeight: "600", color: "#0E3A46" },
   bottomLeft: { position: "absolute", bottom: 0, left: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopRightRadius: 80 },
   bottomRight: { position: "absolute", bottom: 0, right: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopLeftRadius: 80 },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    backgroundColor: "#0E3A46",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    zIndex: 10,
+  },
+  bottomBtn: { flex: 1, alignItems: "center" },
+  bottomIcon: { fontSize: 24, color: "#fff" },
 });
