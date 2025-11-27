@@ -24,13 +24,13 @@ export default function Forgot() {
 
       await api("/api/auth/forgot", {
         method: "POST",
+        withAuth: false,
         body: { email: email.trim() },
-        withAuth: false, 
       });
 
       router.replace("/auth/forgot-success");
     } catch (e: any) {
-      alert(e?.message || "No se pudo enviar el correo");
+      alert(e?.message || "Error enviando el correo");
     } finally {
       setLoading(false);
     }
@@ -39,8 +39,8 @@ export default function Forgot() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <Text style={s.h1}>Bienvenido</Text>
-        <Text style={s.h2}>a TimeSlot</Text>
+        <Text style={s.h1}>Recuperar contraseña</Text>
+        <Text style={s.h2}>Ingresa tu correo</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -54,11 +54,10 @@ export default function Forgot() {
           <View style={s.card}>
             <Text style={s.title}>¿Olvidaste tu contraseña?</Text>
             <Text style={s.msg}>
-              Para generar una nueva contraseña, ingresa el correo con el que te
-              registraste y presiona continuar.
+              Te enviaremos un <Text style={{ fontWeight: "bold" }}>código de recuperación</Text> a tu correo.
             </Text>
 
-            <Text style={[s.label, { marginTop: 12 }]}>Correo:</Text>
+            <Text style={s.label}>Correo:</Text>
             <TextInput
               placeholder="tucorreo@ejemplo.com"
               value={email}
@@ -75,15 +74,12 @@ export default function Forgot() {
               disabled={loading}
             >
               <Text style={s.primaryBtnText}>
-                {loading ? "Enviando..." : "Continuar"}
+                {loading ? "Enviando..." : "Enviar código"}
               </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <View style={s.bottomLeft} />
-      <View style={s.bottomRight} />
     </View>
   );
 }
@@ -101,18 +97,8 @@ const s = StyleSheet.create({
     borderBottomRightRadius: 300,
   },
 
-  h1: {
-    color: "#FFFFFF",
-    fontSize: 36,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-    fontFamily: Platform.select({
-      ios: "Times New Roman",
-      android: "serif",
-      default: "serif",
-    }),
-  },
-  h2: { color: "#E6F1F4", fontSize: 16, fontWeight: "700", marginTop: 2 },
+  h1: { color: "#fff", fontSize: 26, fontWeight: "800" },
+  h2: { color: "#E6F1F4", fontSize: 14, fontWeight: "600" },
 
   card: {
     width: 340,
@@ -122,27 +108,11 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
     padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
 
-  title: {
-    color: "#0E3A46",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-
-  msg: {
-    color: "#374151",
-    fontSize: 13,
-    textAlign: "center",
-    marginBottom: 12,
-  },
+  title: { color: "#0E3A46", fontSize: 18, fontWeight: "700", textAlign: "center" },
+  msg: { color: "#374151", textAlign: "center", marginBottom: 12 },
 
   label: { color: "#0E3A46", fontWeight: "700", marginBottom: 6 },
 
@@ -165,23 +135,4 @@ const s = StyleSheet.create({
   },
 
   primaryBtnText: { color: "#fff", fontWeight: "700" },
-
-  bottomLeft: {
-    position: "absolute",
-    bottom: 0,
-    left: -10,
-    width: 90,
-    height: 80,
-    backgroundColor: "#0E3A46",
-    borderTopRightRadius: 80,
-  },
-  bottomRight: {
-    position: "absolute",
-    bottom: 0,
-    right: -10,
-    width: 90,
-    height: 80,
-    backgroundColor: "#0E3A46",
-    borderTopLeftRadius: 80,
-  },
 });

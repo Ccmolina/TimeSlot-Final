@@ -9,14 +9,14 @@ import sgMail from "@sendgrid/mail";
 
 const r = Router();
 
-// 🔐 Configurar SendGrid
+//  Configurar SendGrid
 if (!process.env.SENDGRID_API_KEY) {
   console.warn("⚠️ Falta SENDGRID_API_KEY en .env");
 } else {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-// Firma de token
+// Firma de token JWT (para login normal)
 function signToken(userId, role) {
   return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
     expiresIn: "7d",
@@ -103,7 +103,7 @@ r.post("/login", async (req, res) => {
   }
 });
 
-// ============= FORGOT PASSWORD =============
+// ============= FORGOT PASSWORD (ENVÍA CÓDIGO DE 4 DÍGITOS) =============
 r.post("/forgot", async (req, res) => {
   const { email } = req.body || {};
 
@@ -117,7 +117,7 @@ r.post("/forgot", async (req, res) => {
       [email]
     );
 
-    // Respuesta genérica aunque no exista el user
+    // Respuesta genérica aunque no exista el user (por seguridad)
     if (rows.length === 0) {
       console.log("Intento reset email NO existe:", email);
       return res.json({
@@ -129,9 +129,9 @@ r.post("/forgot", async (req, res) => {
 
     const user = rows[0];
 
-    // Token y vencimiento
-    const token = crypto.randomBytes(20).toString("hex");
-    const expires = new Date(Date.now() + 1000 * 60 * 30); // 30 min
+    // 🔢 Código de 4 dígitos y vencimiento (30 minutos)
+    const token = Math.floor(1000 + Math.random() * 9000).toString(); // 4 cifras
+    const expires = new Date(Date.now() + 1000 * 60 * 30);
 
     // Guardar en tabla users
     await pool.query(
@@ -139,26 +139,74 @@ r.post("/forgot", async (req, res) => {
       [token, expires, user.id]
     );
 
-    const baseFront = process.env.FRONTEND_URL || "http://localhost:19006";
-    const resetLink = `timeslot://reset?token=${token}`;
+    // URL del frontend (por si algún día el link web funciona)
+    const baseFront = process.env.FRONTEND_URL || "http://localhost:8081";
+    const resetLink = `${baseFront}/auth/reset?token=${token}`;
 
     console.log("Reset solicitado:", email, token, "link:", resetLink);
 
-    // Enviar correo con SendGrid
+    // Enviar correo con SendGrid (MOSTRANDO CÓDIGO)
     if (!process.env.SENDGRID_API_KEY) {
       console.warn("⚠️ No se envía mail: falta SENDGRID_API_KEY");
     } else {
+      const html = `
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Restablecer contraseña</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f4f5fb; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; padding:32px 40px;">
+            <tr>
+              <td style="font-size:18px; color:#4f5660; font-weight:600; padding-bottom:8px;">
+                Hola, ${user.name || "usuario"}:
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:15px; color:#4f5660; line-height:1.5; padding-bottom:16px;">
+                Recibimos una solicitud para restablecer tu contraseña de <strong>TimeSlot</strong>.
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:15px; color:#4f5660; line-height:1.5; padding-bottom:16px;">
+                Tu <strong>código de recuperación</strong> es:
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:28px; color:#5865f2; font-weight:800; padding-bottom:24px; letter-spacing:4px; text-align:center;">
+                ${token}
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px; color:#4f5660; line-height:1.5; padding-bottom:24px;">
+                Abrí la app <strong>TimeSlot</strong>, ve a la pantalla de <strong>"Nueva contraseña"</strong>,
+                ingresá este código y elegí tu nueva contraseña.
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:11px; color:#99aab5; line-height:1.4; border-top:1px solid #e3e5ea; padding-top:16px;">
+                (Para desarrollo también dejamos este enlace: 
+                <span style="color:#5865f2; word-break:break-all;">${resetLink}</span>.
+                Si no se abre correctamente, podés usar solo el código de arriba.)
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+      `;
+
       await sgMail.send({
         to: email,
         from: process.env.EMAIL_FROM || "no-reply@timeslot.dev",
         subject: "Restablecer contraseña - TimeSlot",
-        html: `
-          <p>Hola ${user.name || ""},</p>
-          <p>Recibimos una solicitud para restablecer tu contraseña en <b>TimeSlot</b>.</p>
-          <p>Haz clic en el siguiente enlace para crear una nueva contraseña (es válido por 30 minutos):</p>
-          <p><a href="${resetLink}">${resetLink}</a></p>
-          <p>Si no fuiste vos, podés ignorar este mensaje.</p>
-        `,
+        html,
       });
     }
 
@@ -173,7 +221,7 @@ r.post("/forgot", async (req, res) => {
   }
 });
 
-// ============= RESET PASSWORD =============
+// ============= RESET PASSWORD (USA EL CÓDIGO DE 4 DÍGITOS) =============
 r.post("/reset", async (req, res) => {
   const { token, password } = req.body;
 
