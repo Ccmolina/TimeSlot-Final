@@ -20,15 +20,29 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(true); 
 
-  const saveToken = async (token: string, user: any) => {
+  const saveToken = async (token: string, user: any, rememberFlag: boolean) => {
+  
+    const posibleNombre =
+      user?.name ||
+      user?.nombre ||
+      user?.fullName ||
+      `${user?.name || ""} ${user?.last || user?.apellido || ""}`.trim();
+
+    const finalName = posibleNombre || "Usuario";
+
     if (Platform.OS === "web") {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("userName", finalName);
+      localStorage.setItem("rememberMe", rememberFlag ? "1" : "0");
     } else {
       try {
         await AsyncStorage.setItem("token", token);
         await AsyncStorage.setItem("user", JSON.stringify(user));
+        await AsyncStorage.setItem("userName", finalName);
+        await AsyncStorage.setItem("rememberMe", rememberFlag ? "1" : "0");
       } catch (e) {
         console.log("Error guardando en AsyncStorage:", e);
       }
@@ -36,6 +50,11 @@ export default function Login() {
       try {
         await SecureStore.setItemAsync("token", token);
         await SecureStore.setItemAsync("user", JSON.stringify(user));
+        await SecureStore.setItemAsync("userName", finalName);
+        await SecureStore.setItemAsync(
+          "rememberMe",
+          rememberFlag ? "1" : "0"
+        );
       } catch (e) {
         console.log("Error guardando en SecureStore:", e);
       }
@@ -43,21 +62,18 @@ export default function Login() {
   };
 
   const redirectByUser = (user: any) => {
-  const role = (user?.role || "").toLowerCase();
+    const role = (user?.role || "").toLowerCase();
 
-  console.log("🔎 rol recibido en login:", role);
+    console.log("🔎 rol recibido en login:", role);
 
-  if (role === "admin") {
-    router.replace("/admin/InformesScreen");
-  } 
-  else if (role === "medico" || role === "médico") {
-    router.replace("/medico/HomeScreen");
-  } 
-  else {
-    router.replace("/home");
-  }
-};
-
+    if (role === "admin") {
+      router.replace("/admin/InformesScreen");
+    } else if (role === "medico" || role === "médico") {
+      router.replace("/medico/HomeScreen");
+    } else {
+      router.replace("/home");
+    }
+  };
 
   const onLogin = async () => {
     if (!email.trim() || !pass.trim()) {
@@ -75,7 +91,10 @@ export default function Login() {
 
       console.log("🔐 Login response:", data);
 
-      await saveToken(data.token, data.user);
+     
+      await saveToken(data.token, data.user, remember);
+
+     
       redirectByUser(data.user);
     } catch (e: any) {
       console.log("Login error:", e);
@@ -128,9 +147,20 @@ export default function Login() {
                 placeholderTextColor="#9AA3AF"
               />
 
+             
+              <TouchableOpacity
+                style={s.rememberRow}
+                onPress={() => setRemember((prev) => !prev)}
+              >
+                <View style={[s.checkbox, remember && s.checkboxOn]}>
+                  {remember && <Text style={s.checkboxMark}>✓</Text>}
+                </View>
+                <Text style={s.rememberText}>Mantener sesión iniciada</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={() => router.push("/auth/forgot")}
-                style={{ alignSelf: "center", marginTop: 8 }}
+                style={{ alignSelf: "center", marginTop: 4 }}
               >
                 <Text style={s.helperLink}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
@@ -232,6 +262,38 @@ const s = StyleSheet.create({
     color: "#111827",
   },
   helperLink: { color: "#6B7280", fontSize: 12 },
+
+
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#9CA3AF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  checkboxOn: {
+    backgroundColor: "#0E3A46",
+    borderColor: "#0E3A46",
+  },
+  checkboxMark: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  rememberText: {
+    fontSize: 12,
+    color: "#4B5563",
+  },
+
   primaryBtn: {
     backgroundColor: "#0E3A46",
     paddingVertical: 12,

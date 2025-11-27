@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -13,32 +13,6 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { useReservas } from "../store/reservas";
-
-const AREAS = [
-  "Gastroenterología",
-  "Clínica Médica",
-  "Cardiología",
-  "Dermatología",
-];
-
-const PROFES = [
-  "JENSEN, María Virginia",
-  "GARCÍA, Pablo",
-  "SILVA, Andrea",
-  "RODRÍGUEZ, Juan",
-];
-
-const HORAS = [
-  "08:00",
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "14:00",
-  "15:00",
-  "16:00",
-];
 
 type MonthDay = {
   key: string;
@@ -46,45 +20,219 @@ type MonthDay = {
   iso?: string;
 };
 
+const BASE = "http://192.168.12.197:4000/api"; // 👈 IMPORTANTE: /api
+
+function getMonthKey(iso: string) {
+  return iso.slice(0, 7); // "2025-12-03" -> "2025-12"
+}
+
 export default function NuevaReserva() {
-  const add = useReservas((s) => s.add);
-  const reservas = useReservas((s) => s.reservas);
+  const [areas, setAreas] = useState<string[]>([]);
+  const [profesionales, setProfesionales] = useState<string[]>([]);
+  const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
 
   const [area, setArea] = useState<string>("");
   const [profesional, setProfesional] = useState<string>("");
   const [fechaISO, setFechaISO] = useState<string>(toISO(new Date()));
-  const [hora, setHora] = useState<string>("08:00");
+  const [hora, setHora] = useState<string>("");
 
   const [openArea, setOpenArea] = useState(false);
   const [openPro, setOpenPro] = useState(false);
   const [openHora, setOpenHora] = useState(false);
+
+  const [loadingAreas, setLoadingAreas] = useState(false);
+  const [loadingProfes, setLoadingProfes] = useState(false);
+  const [loadingHoras, setLoadingHoras] = useState(false);
+
+  const [diasDisponibles, setDiasDisponibles] = useState<string[]>([]);
+
+  // --------- CARGAR ÁREAS ---------
+  useEffect(() => {
+    const cargarAreas = async () => {
+      try {
+        setLoadingAreas(true);
+        const token = await SecureStore.getItemAsync("token");
+        if (!token) {
+          alert("No hay sesión activa. Inicia sesión nuevamente.");
+          return;
+        }
+
+        const res = await fetch(`${BASE}/opciones/areas`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          console.log("Error cargando áreas:", await res.text());
+          alert("No se pudieron cargar las áreas.");
+          return;
+        }
+
+        const lista: string[] = await res.json();
+        setAreas(lista);
+      } catch (e) {
+        console.log("Error conexión áreas:", e);
+        alert("Error de conexión al cargar áreas.");
+      } finally {
+        setLoadingAreas(false);
+      }
+    };
+
+    cargarAreas();
+  }, []);
+
+  // --------- CARGAR PROFESIONALES ---------
+  useEffect(() => {
+    const cargarProfesionales = async () => {
+      setProfesionales([]);
+      setProfesional("");
+      setHorasDisponibles([]);
+      setHora("");
+      setDiasDisponibles([]);
+
+      if (!area) return;
+
+      try {
+        setLoadingProfes(true);
+        const token = await SecureStore.getItemAsync("token");
+        if (!token) {
+          alert("No hay sesión activa. Inicia sesión nuevamente.");
+          return;
+        }
+
+        const url = `${BASE}/opciones/profesionales?area=${encodeURIComponent(
+          area
+        )}`;
+
+        const res = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          console.log("Error cargando profesionales:", await res.text());
+          alert("No se pudieron cargar los profesionales.");
+          return;
+        }
+
+        const lista: string[] = await res.json();
+        setProfesionales(lista);
+      } catch (e) {
+        console.log("Error conexión profesionales:", e);
+        alert("Error de conexión al cargar profesionales.");
+      } finally {
+        setLoadingProfes(false);
+      }
+    };
+
+    cargarProfesionales();
+  }, [area]);
+
+  // --------- CARGAR HORAS DISPONIBLES ---------
+  useEffect(() => {
+    const cargarHoras = async () => {
+      setHorasDisponibles([]);
+      setHora("");
+
+      if (!area || !profesional || !fechaISO) return;
+
+      try {
+        setLoadingHoras(true);
+        const token = await SecureStore.getItemAsync("token");
+        if (!token) {
+          alert("No hay sesión activa. Inicia sesión nuevamente.");
+          return;
+        }
+
+        const url =
+          `${BASE}/opciones/horas` +
+          `?area=${encodeURIComponent(area)}` +
+          `&profesional=${encodeURIComponent(profesional)}` +
+          `&fecha=${encodeURIComponent(fechaISO)}`;
+
+        const res = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          console.log("Error cargando horas:", await res.text());
+          alert("No se pudieron cargar los horarios disponibles.");
+          return;
+        }
+
+        const data = await res.json();
+        const horas: string[] = data.horas || [];
+        setHorasDisponibles(horas);
+        setHora(horas[0] || "");
+      } catch (e) {
+        console.log("Error conexión horas:", e);
+        alert("Error de conexión al cargar horarios.");
+      } finally {
+        setLoadingHoras(false);
+      }
+    };
+
+    cargarHoras();
+  }, [area, profesional, fechaISO]);
+
+  // --------- CARGAR DÍAS DISPONIBLES ---------
+  useEffect(() => {
+    const cargarDias = async () => {
+      setDiasDisponibles([]);
+
+      if (!area || !profesional) return;
+
+      try {
+        const token = await SecureStore.getItemAsync("token");
+        if (!token) {
+          alert("No hay sesión activa. Inicia sesión nuevamente.");
+          return;
+        }
+
+        const mes = getMonthKey(fechaISO);
+
+        const url =
+          `${BASE}/opciones/dias-disponibles` +
+          `?area=${encodeURIComponent(area)}` +
+          `&profesional=${encodeURIComponent(profesional)}` +
+          `&mes=${encodeURIComponent(mes)}`;
+
+        const res = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          console.log("Error cargando días disponibles:", await res.text());
+          return;
+        }
+
+        const data = await res.json();
+        const dias: string[] = data.dias || [];
+        setDiasDisponibles(dias);
+      } catch (e) {
+        console.log("Error conexión días disponibles:", e);
+      }
+    };
+
+    cargarDias();
+  }, [area, profesional, fechaISO]);
 
   const diasMes = useMemo(
     () => buildMonthDays(new Date(fechaISO)),
     [fechaISO]
   );
 
-  const reservasProfesional = useMemo(
-    () => reservas.filter((r) => r.profesional === profesional),
-    [reservas, profesional]
-  );
-
-  const reservasByDay = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    reservasProfesional.forEach((r) => {
-      if (!map.has(r.fechaISO)) map.set(r.fechaISO, new Set());
-      map.get(r.fechaISO)!.add(r.hora);
-    });
-    return map;
-  }, [reservasProfesional]);
-
-  const horasDisponibles = useMemo(() => {
-    if (!profesional) return HORAS;
-    const booked = reservasByDay.get(fechaISO);
-    if (!booked) return HORAS;
-    return HORAS.filter((h) => !booked.has(h));
-  }, [profesional, fechaISO, reservasByDay]);
-
+  // --------- CREAR RESERVA ---------
   const crear = async () => {
     if (!area || !profesional || !fechaISO || !hora) {
       return alert("Completa todos los campos");
@@ -97,7 +245,7 @@ export default function NuevaReserva() {
         return;
       }
 
-      const res = await fetch("http://192.168.12.197:4000/api/reservas", {
+      const res = await fetch(`${BASE}/reservas`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -119,8 +267,7 @@ export default function NuevaReserva() {
         return;
       }
 
-      const nueva = await res.json();
-      add(nueva);
+      await res.json();
       router.replace("/home");
     } catch (e) {
       console.log(e);
@@ -129,13 +276,21 @@ export default function NuevaReserva() {
   };
 
   const abrirHora = () => {
+    if (!area) {
+      alert("Primero selecciona un área");
+      return;
+    }
     if (!profesional) {
       alert("Primero selecciona un profesional");
       return;
     }
+    if (loadingHoras) {
+      alert("Cargando horarios, espera un momento…");
+      return;
+    }
     if (horasDisponibles.length === 0) {
       alert(
-        "Este día no tiene horarios disponibles para este profesional. Elige otra fecha."
+        "Este día no tiene horarios disponibles para ese profesional. Elige otra fecha."
       );
       return;
     }
@@ -161,30 +316,59 @@ export default function NuevaReserva() {
           </View>
 
           <View style={s.form}>
-            <Text style={s.label}>Area</Text>
-            <Pressable style={s.select} onPress={() => setOpenArea(true)}>
+            {/* Área */}
+            <Text style={s.label}>Área</Text>
+            <Pressable
+              style={s.select}
+              onPress={() => {
+                if (loadingAreas) {
+                  alert("Cargando áreas desde el servidor…");
+                  return;
+                }
+                setOpenArea(true);
+              }}
+            >
               <Text style={s.selectText}>
-                {area || "Selecciona un área"}
+                {area ||
+                  (loadingAreas ? "Cargando..." : "Selecciona un servicio")}
               </Text>
               <Text style={s.caret}>▾</Text>
             </Pressable>
 
+            {/* Profesional */}
             <Text style={[s.label, { marginTop: 18 }]}>Profesional</Text>
-            <Pressable style={s.select} onPress={() => setOpenPro(true)}>
+            <Pressable
+              style={s.select}
+              onPress={() => {
+                if (!area) {
+                  alert("Primero selecciona un servicio");
+                  return;
+                }
+                if (loadingProfes) {
+                  alert("Cargando profesionales…");
+                  return;
+                }
+                if (profesionales.length === 0) {
+                  alert("No hay profesionales para esa área.");
+                  return;
+                }
+                setOpenPro(true);
+              }}
+            >
               <Text style={s.selectText}>
                 {profesional || "Selecciona un profesional"}
               </Text>
               <Text style={s.caret}>▾</Text>
             </Pressable>
 
+            {/* Fecha */}
             <Text style={[s.label, { marginTop: 18 }]}>Fecha</Text>
             <View style={s.calendar}>
               <View style={s.calHead}>
                 <TouchableOpacity
                   onPress={() =>
                     setFechaISO(toISO(addMonths(new Date(fechaISO), -1)))
-                  }
-                >
+                }>
                   <Text style={s.arrow}>‹</Text>
                 </TouchableOpacity>
                 <Text style={s.monthLabel}>
@@ -193,8 +377,7 @@ export default function NuevaReserva() {
                 <TouchableOpacity
                   onPress={() =>
                     setFechaISO(toISO(addMonths(new Date(fechaISO), 1)))
-                  }
-                >
+                }>
                   <Text style={s.arrow}>›</Text>
                 </TouchableOpacity>
               </View>
@@ -209,13 +392,20 @@ export default function NuevaReserva() {
 
               <View style={s.daysGrid}>
                 {diasMes.map((d) => {
-                  const booked = d.iso ? reservasByDay.get(d.iso) : undefined;
-                  const hasReserva = !!booked && booked.size > 0;
-                  const fullBooked =
-                    !!booked && booked.size >= HORAS.length;
+                  const esDiaReal = !!d.day;
 
-                  const disabled =
-                    !d.day || !profesional || fullBooked;
+                  // ⚠️ Si no hay diasDisponibles, NO bloqueamos todo el mes
+                  let estaDisponible = true;
+                  if (
+                    area &&
+                    profesional &&
+                    d.iso &&
+                    diasDisponibles.length > 0
+                  ) {
+                    estaDisponible = diasDisponibles.includes(d.iso);
+                  }
+
+                  const disabled = !esDiaReal || !estaDisponible;
 
                   return (
                     <TouchableOpacity
@@ -223,40 +413,42 @@ export default function NuevaReserva() {
                       disabled={disabled}
                       style={[
                         s.dayCell,
-                        hasReserva ? s.dayHasReserva : null,
-                        fullBooked ? s.dayFull : null,
-                        d.iso === fechaISO && d.day && !fullBooked
+                        esDiaReal &&
+                        !disabled &&
+                        d.iso === fechaISO
                           ? s.daySelected
                           : null,
-                        !d.day ? { opacity: 0 } : null,
+                        !esDiaReal ? { opacity: 0 } : null,
+                        disabled && esDiaReal ? { opacity: 0.3 } : null,
                       ]}
-                      onPress={() => d.iso && setFechaISO(d.iso)}
+                      onPress={() => d.iso && !disabled && setFechaISO(d.iso)}
                     >
                       <Text
                         style={[
                           s.dayText,
-                          d.iso === fechaISO &&
-                          d.day &&
-                          !fullBooked
+                          esDiaReal &&
+                          !disabled &&
+                          d.iso === fechaISO
                             ? { color: "#fff", fontWeight: "800" }
                             : null,
-                          disabled && d.day ? { color: "#9CA3AF" } : null,
                         ]}
                       >
                         {d.day || ""}
                       </Text>
-                      {hasReserva && !fullBooked && (
-                        <View style={s.dot} />
-                      )}
                     </TouchableOpacity>
                   );
                 })}
               </View>
             </View>
 
-            <Text style={[s.label, { marginTop: 18 }]}>Hora</Text>
+            {/* Hora */}
+            <Text style={[s.label, { marginTop: 18 }]}>
+              Hora {loadingHoras ? "(cargando...)" : ""}
+            </Text>
             <Pressable style={s.select} onPress={abrirHora}>
-              <Text style={s.selectText}>{hora}</Text>
+              <Text style={s.selectText}>
+                {hora || "Selecciona una hora disponible"}
+              </Text>
               <Text style={s.caret}>▾</Text>
             </Pressable>
 
@@ -270,26 +462,27 @@ export default function NuevaReserva() {
         </View>
       </ScrollView>
 
+      {/* Pickers */}
       <SimplePicker
         visible={openArea}
-        title="Selecciona un área"
-        items={AREAS}
+        title="Selecciona un servicio"
+        items={areas}
         onClose={() => setOpenArea(false)}
-        onPick={setArea}
+        onPick={(v) => setArea(v)}
       />
       <SimplePicker
         visible={openPro}
         title="Selecciona un profesional"
-        items={PROFES}
+        items={profesionales}
         onClose={() => setOpenPro(false)}
-        onPick={setProfesional}
+        onPick={(v) => setProfesional(v)}
       />
       <SimplePicker
         visible={openHora}
         title="Selecciona la hora"
         items={horasDisponibles}
         onClose={() => setOpenHora(false)}
-        onPick={setHora}
+        onPick={(v) => setHora(v)}
       />
     </SafeAreaView>
   );
@@ -334,6 +527,7 @@ function SimplePicker({
   );
 }
 
+// --------- Helpers fechas ---------
 function toISO(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -397,7 +591,6 @@ const s = StyleSheet.create({
     alignItems: "center",
     paddingBottom: 40,
   },
-
   backBtn: {
     position: "absolute",
     top: 14,
@@ -415,7 +608,6 @@ const s = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
   },
-
   header: {
     marginTop: 24,
     marginBottom: 24,
@@ -462,12 +654,10 @@ const s = StyleSheet.create({
       default: "serif",
     }),
   },
-
   form: {
     width: "80%",
     maxWidth: 320,
   },
-
   label: {
     color: "#0E3A46",
     fontWeight: "600",
@@ -488,7 +678,6 @@ const s = StyleSheet.create({
   },
   selectText: { color: "#111827", fontSize: 14 },
   caret: { color: "#4B5563", fontSize: 16 },
-
   calendar: {
     borderWidth: 1,
     borderColor: "#D1D5DB",
@@ -510,7 +699,6 @@ const s = StyleSheet.create({
     fontSize: 12,
   },
   arrow: { color: "#0E3A46", fontSize: 18, paddingHorizontal: 4 },
-
   weekRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -532,23 +720,7 @@ const s = StyleSheet.create({
     marginVertical: 1,
   },
   daySelected: { backgroundColor: "#0E3A46" },
-  dayHasReserva: {
-    borderWidth: 1,
-    borderColor: "#0E3A46",
-    backgroundColor: "#E0F2FE",
-  },
-  dayFull: {
-    backgroundColor: "#E5E7EB",
-  },
   dayText: { color: "#0E3A46", fontSize: 11 },
-  dot: {
-    marginTop: 1,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#0E3A46",
-  },
-
   primaryBtn: {
     backgroundColor: "#0E3A46",
     paddingVertical: 10,
@@ -557,7 +729,6 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   primaryBtnText: { color: "#fff", fontWeight: "600" },
-
   cornerBottomLeft: {
     position: "absolute",
     left: 0,

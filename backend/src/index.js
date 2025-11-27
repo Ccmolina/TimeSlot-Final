@@ -16,7 +16,7 @@ import horariosRoutes from "./admin/horarios.js";
 import horarioServicioRouter from "./admin/horario_servicio.js";
 import informesmedicoRouter from "./medico/informesmedico.js";
 import horariosmRoutes from "./medico/horariosmedico.js";
-
+import opcionesRoutes from "./opciones.routes.js";
 
 import { pool } from "./db.js";
 
@@ -57,6 +57,7 @@ app.use("/api/horarios", horariosRoutes);
 app.use("/api/horario_servicio", horarioServicioRouter);
 app.use("/api/informesm", informesmedicoRouter);
 app.use("/api/horariosm", horariosmRoutes);
+app.use("/api/opciones", opcionesRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

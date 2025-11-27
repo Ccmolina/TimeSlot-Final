@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   View,
@@ -9,28 +10,37 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { router } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import { api } from "../../lib/api";
 
-export default function Forgot() {
-  const [email, setEmail] = useState("");
+export default function Reset() {
+  const { token } = useLocalSearchParams<{ token?: string }>();
+  const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const onForgot = async () => {
-    if (!email.trim()) return alert("Ingresa tu correo");
+  const onReset = async () => {
+    if (!token) {
+      return alert("Falta el token de recuperación.");
+    }
+    if (!password || !password2) {
+      return alert("Completa ambos campos de contraseña.");
+    }
+    if (password !== password2) {
+      return alert("Las contraseñas no coinciden.");
+    }
 
     try {
       setLoading(true);
-
-      await api("/api/auth/forgot", {
+      await api("/api/auth/reset", {
         method: "POST",
-        body: { email: email.trim() },
-        withAuth: false, 
+        body: { token, password },
+        withAuth: false,
       });
-
-      router.replace("/auth/forgot-success");
+      alert("Contraseña actualizada. Ahora puedes iniciar sesión.");
+      router.replace("/auth/login");
     } catch (e: any) {
-      alert(e?.message || "No se pudo enviar el correo");
+      alert(e?.message || "No se pudo actualizar la contraseña");
     } finally {
       setLoading(false);
     }
@@ -52,30 +62,40 @@ export default function Forgot() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={s.card}>
-            <Text style={s.title}>¿Olvidaste tu contraseña?</Text>
+            <Text style={s.title}>Restablecer contraseña</Text>
             <Text style={s.msg}>
-              Para generar una nueva contraseña, ingresa el correo con el que te
-              registraste y presiona continuar.
+              Ingresa tu nueva contraseña para continuar.
             </Text>
 
-            <Text style={[s.label, { marginTop: 12 }]}>Correo:</Text>
+            <Text style={[s.label, { marginTop: 12 }]}>Nueva contraseña</Text>
             <TextInput
-              placeholder="tucorreo@ejemplo.com"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
               style={s.input}
+              placeholder="********"
+              placeholderTextColor="#9AA3AF"
+            />
+
+            <Text style={[s.label, { marginTop: 12 }]}>
+              Repite la contraseña
+            </Text>
+            <TextInput
+              value={password2}
+              onChangeText={setPassword2}
+              secureTextEntry
+              style={s.input}
+              placeholder="********"
               placeholderTextColor="#9AA3AF"
             />
 
             <TouchableOpacity
               style={s.primaryBtn}
-              onPress={onForgot}
+              onPress={onReset}
               disabled={loading}
             >
               <Text style={s.primaryBtnText}>
-                {loading ? "Enviando..." : "Continuar"}
+                {loading ? "Guardando..." : "Confirmar"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -90,7 +110,6 @@ export default function Forgot() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", alignItems: "center" },
-
   header: {
     backgroundColor: "#0E3A46",
     width: "130%",
@@ -100,7 +119,6 @@ const s = StyleSheet.create({
     borderBottomLeftRadius: 300,
     borderBottomRightRadius: 300,
   },
-
   h1: {
     color: "#FFFFFF",
     fontSize: 36,
@@ -113,7 +131,6 @@ const s = StyleSheet.create({
     }),
   },
   h2: { color: "#E6F1F4", fontSize: 16, fontWeight: "700", marginTop: 2 },
-
   card: {
     width: 340,
     backgroundColor: "#fff",
@@ -128,24 +145,20 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-
   title: {
     color: "#0E3A46",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
     marginBottom: 6,
     textAlign: "center",
   },
-
   msg: {
     color: "#374151",
     fontSize: 13,
     textAlign: "center",
     marginBottom: 12,
   },
-
   label: { color: "#0E3A46", fontWeight: "700", marginBottom: 6 },
-
   input: {
     height: 42,
     borderWidth: 1,
@@ -155,7 +168,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     color: "#111827",
   },
-
   primaryBtn: {
     backgroundColor: "#0E3A46",
     paddingVertical: 12,
@@ -163,9 +175,7 @@ const s = StyleSheet.create({
     marginTop: 18,
     alignItems: "center",
   },
-
   primaryBtnText: { color: "#fff", fontWeight: "700" },
-
   bottomLeft: {
     position: "absolute",
     bottom: 0,

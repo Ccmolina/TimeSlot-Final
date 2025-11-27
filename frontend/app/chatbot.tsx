@@ -12,13 +12,14 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useReservas } from "./store/reservas";
-
 
 const API_URL = "http://192.168.12.197:4000/api";
 
 export default function ChatbotScreen() {
   const addReserva = useReservas((s) => s.add);
+
   const [token, setToken] = useState<string | null>(null);
   const [messages, setMessages] = useState<
     { id: string; from: "user" | "bot"; text: string }[]
@@ -27,15 +28,31 @@ export default function ChatbotScreen() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
 
-
+  // 👉 Cargar token desde SecureStore o AsyncStorage
   useEffect(() => {
     (async () => {
-      const t = await SecureStore.getItemAsync("token");
-      setToken(t || null);
+      let t: string | null = null;
+
+      try {
+        t = await SecureStore.getItemAsync("token");
+      } catch (e) {
+        console.log("Error leyendo token desde SecureStore en Chatbot:", e);
+      }
+
+      if (!t) {
+        try {
+          t = (await AsyncStorage.getItem("token")) || null;
+        } catch (e) {
+          console.log("Error leyendo token desde AsyncStorage en Chatbot:", e);
+        }
+      }
+
+      console.log("🔑 Token en Chatbot:", t ? "EXISTE" : "NO HAY");
+      setToken(t);
     })();
   }, []);
 
-
+  // Mensaje inicial del bot
   useEffect(() => {
     setMessages([
       {
@@ -50,7 +67,12 @@ export default function ChatbotScreen() {
 
   const sendMessage = async () => {
     if (!input.trim() || !token || sending) {
-      console.log("No se envía mensaje. token:", token, "sending:", sending);
+      console.log(
+        "No se envía mensaje. token:",
+        token,
+        "sending:",
+        sending
+      );
       return;
     }
 
@@ -115,8 +137,10 @@ export default function ChatbotScreen() {
       setMessages((prev) => [...prev, botMsg]);
       setContext(data.context || {});
 
-    
+      // --------- Lógica para guardar reserva local si el backend confirma ---------
       const c = ctxBefore || {};
+      const normalizedReply = (data.reply || "").toLowerCase();
+
       const isConfirmMessage =
         normalized === "si" ||
         normalized === "sí" ||
@@ -130,13 +154,13 @@ export default function ChatbotScreen() {
         c.hora &&
         c.modalidad;
 
-      const replyText = (data.reply || "").toLowerCase();
       const looksLikeSuccess =
-        replyText.includes("tu reserva fue creada correctamente") ||
-        replyText.includes("reserva fue creada correctamente");
+        normalizedReply.includes("tu reserva fue creada correctamente") ||
+        normalizedReply.includes("reserva fue creada correctamente");
 
       if (isConfirmMessage && hasDataForReserva && looksLikeSuccess) {
         addReserva({
+          id: String(Date.now()),
           area: c.area,
           profesional: c.profesional,
           fechaISO: c.fechaISO,
@@ -221,7 +245,6 @@ export default function ChatbotScreen() {
         </View>
       </View>
 
- 
       <FlatList
         data={messages}
         keyExtractor={(item) => item.id}
@@ -230,7 +253,7 @@ export default function ChatbotScreen() {
         keyboardShouldPersistTaps="handled"
       />
 
-
+      {/* INPUT */}
       <View style={styles.inputBar}>
         <View style={styles.inputContainer}>
           <TextInput

@@ -105,6 +105,8 @@ export default function InformesScreen() {
                 height={220}
                 fromZero
                 showValuesOnTopOfBars
+                yAxisLabel=""
+                yAxisSuffix=""
                 chartConfig={{
                   backgroundGradientFrom: "#fff",
                   backgroundGradientTo: "#fff",
@@ -128,31 +130,35 @@ export default function InformesScreen() {
         </View>
 
         <View style={s.card}>
-          <Text style={s.title}>Mis Cancelaciones</Text>
+          <Text style={s.title}>Cancelaciones</Text>
           {cancelaciones.length > 0 ? (
-            <BarChart
-              data={{
-                labels: cancelaciones.map((c) =>
-                  new Date(c.fecha).toLocaleDateString("es-AR", {
-                    day: "2-digit",
-                    month: "short",
-                  })
-                ),
-                datasets: [{ data: cancelaciones.map((c) => c.total_cancelaciones) }],
-              }}
-              width={Dimensions.get("window").width - 60}
-              height={220}
-              fromZero
-              chartConfig={{
-                backgroundGradientFrom: "#fff",
-                backgroundGradientTo: "#fff",
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(255, 99, 71, ${opacity})`,
-                labelColor: () => "#333",
-                barPercentage: 0.6,
-              }}
-              style={{ borderRadius: 10 }}
-            />
+            <>
+              <BarChart
+                data={{
+                  labels: cancelaciones.map((c) =>
+                    new Date(c.fecha).toLocaleDateString("es-AR", {
+                      day: "2-digit",
+                      month: "short",
+                    })
+                  ),
+                  datasets: [{ data: cancelaciones.map((c) => c.total_cancelaciones) }],
+                }}
+                width={Dimensions.get("window").width - 60}
+                height={220}
+                fromZero
+                yAxisLabel=""
+                yAxisSuffix=""
+                chartConfig={{
+                  backgroundGradientFrom: "#fff",
+                  backgroundGradientTo: "#fff",
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(255, 99, 71, ${opacity})`,
+                  labelColor: () => "#333",
+                  barPercentage: 0.6,
+                }}
+                style={{ borderRadius: 10 }}
+              />
+            </>
           ) : (
             <Text style={s.text}>No hay datos de cancelaciones</Text>
           )}

@@ -98,6 +98,8 @@ export default function InformesScreen() {
                 height={220}
                 fromZero
                 showValuesOnTopOfBars
+                yAxisLabel=""
+                yAxisSuffix=""
                 chartConfig={{
                   backgroundGradientFrom: "#fff",
                   backgroundGradientTo: "#fff",
@@ -131,6 +133,8 @@ export default function InformesScreen() {
               width={Dimensions.get("window").width - 60}
               height={220}
               fromZero
+              yAxisLabel=""
+              yAxisSuffix=""
               chartConfig={{
                 backgroundGradientFrom: "#fff",
                 backgroundGradientTo: "#fff",

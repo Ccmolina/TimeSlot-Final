@@ -1,17 +1,17 @@
 import { create, type StateCreator } from "zustand";
 
 export type Reserva = {
-  id: string;
+  id: string;          
   area: string;
   profesional: string;
-  fechaISO: string;
-  hora: string;
-  modalidad?: "Presencial" | "Virtual";
+  fechaISO: string;  
+  hora: string;       
+  modalidad?: string; 
 };
 
 type State = {
   reservas: Reserva[];
-  add: (r: Omit<Reserva, "id">) => void;
+  add: (r: Reserva) => void;
   remove: (id: string) => void;
   clear: () => void;
   syncFromBackend: (lista: Reserva[]) => void;
@@ -20,9 +20,10 @@ type State = {
 const creator: StateCreator<State> = (set) => ({
   reservas: [],
 
+
   add: (r) =>
     set((prev: State) => {
-      const nueva: Reserva = { ...r, id: String(Date.now()) };
+      const nueva: Reserva = { ...r };
       const ordenadas = [...prev.reservas, nueva].sort((a, b) =>
         (a.fechaISO + a.hora).localeCompare(b.fechaISO + b.hora)
       );

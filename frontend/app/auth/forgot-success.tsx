@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Platform /*, Image*/ } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from "react-native";
 import { router } from "expo-router";
 
 export default function ForgotSuccess() {
@@ -13,14 +19,18 @@ export default function ForgotSuccess() {
       <View style={[s.card, { alignItems: "center" }]}>
         <Text style={s.title}>¡Listo!</Text>
         <Text style={s.msg}>
-          Te enviamos un mail a tu dirección de correo con los pasos para restablecer la contraseña.
+          Te enviamos un correo con las instrucciones para restablecer tu
+          contraseña.
         </Text>
         <Text style={[s.msg, { marginTop: 8 }]}>
-          Revísalo para poder iniciar sesión nuevamente.
+          Revísalo para continuar.
         </Text>
 
-        <TouchableOpacity style={s.primaryBtn} onPress={() => router.replace("/auth/login")}>
-          <Text style={s.primaryBtnText}>Ir al menú Principal</Text>
+        <TouchableOpacity
+          style={s.primaryBtn}
+          onPress={() => router.replace("/auth/login")}
+        >
+          <Text style={s.primaryBtnText}>Volver al inicio</Text>
         </TouchableOpacity>
       </View>
 
@@ -32,6 +42,7 @@ export default function ForgotSuccess() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", alignItems: "center" },
+
   header: {
     backgroundColor: "#0E3A46",
     width: "130%",
@@ -41,14 +52,19 @@ const s = StyleSheet.create({
     borderBottomLeftRadius: 300,
     borderBottomRightRadius: 300,
   },
-  logo: { width: 64, height: 64, marginBottom: 6 },
+
   h1: {
     color: "#FFFFFF",
     fontSize: 36,
     fontWeight: "800",
     letterSpacing: 0.3,
-    fontFamily: Platform.select({ ios: "Times New Roman", android: "serif", default: "serif" }),
+    fontFamily: Platform.select({
+      ios: "Times New Roman",
+      android: "serif",
+      default: "serif",
+    }),
   },
+
   h2: { color: "#E6F1F4", fontSize: 16, fontWeight: "700", marginTop: 2 },
 
   card: {
@@ -66,7 +82,14 @@ const s = StyleSheet.create({
     elevation: 4,
   },
 
-  title: { fontSize: 20, fontWeight: "800", color: "#0E3A46", marginBottom: 8, textAlign: "center" },
+  title: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0E3A46",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+
   msg: { color: "#374151", textAlign: "center" },
 
   primaryBtn: {
@@ -77,8 +100,26 @@ const s = StyleSheet.create({
     alignItems: "center",
     alignSelf: "stretch",
   },
+
   primaryBtnText: { color: "#fff", fontWeight: "700" },
 
-  bottomLeft: { position: "absolute", bottom: 0, left: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopRightRadius: 80 },
-  bottomRight: { position: "absolute", bottom: 0, right: -10, width: 90, height: 80, backgroundColor: "#0E3A46", borderTopLeftRadius: 80 },
+  bottomLeft: {
+    position: "absolute",
+    bottom: 0,
+    left: -10,
+    width: 90,
+    height: 80,
+    backgroundColor: "#0E3A46",
+    borderTopRightRadius: 80,
+  },
+
+  bottomRight: {
+    position: "absolute",
+    bottom: 0,
+    right: -10,
+    width: 90,
+    height: 80,
+    backgroundColor: "#0E3A46",
+    borderTopLeftRadius: 80,
+  },
 });

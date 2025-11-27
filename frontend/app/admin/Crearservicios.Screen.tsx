@@ -81,13 +81,12 @@ export default function GestionServiciosScreen() {
     if (!confirmacion) return;
 
     try {
-      const res = await api<{ ok: boolean; msg: string }>(`/api/servicios/${id}`, { method: "DELETE" });
-      const data = await res.json();
+      const res = await api<{ ok: boolean; msg?: string; error?: string }>(`/api/servicios/${id}`, { method: "DELETE" });
       if (res.ok) {
-        Alert.alert("Eliminado", data.message || "Servicio eliminado correctamente");
+        Alert.alert("Eliminado", res.msg || "Servicio eliminado correctamente");
         setServicios((prev) => prev.filter((s) => s.servicio_id !== id));
       } else {
-        Alert.alert("Error", data.error || "No se pudo eliminar el servicio");
+        Alert.alert("Error", res.error || "No se pudo eliminar el servicio");
       }
     } catch (error) {
       console.error(error);

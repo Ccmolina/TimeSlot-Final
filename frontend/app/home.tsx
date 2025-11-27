@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as ImagePicker from "expo-image-picker";
 import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useReservas, type Reserva } from "./store/reservas";
 
 function toDDMMYYYY(iso: string): string {
@@ -47,18 +48,23 @@ export default function Home() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [openAvisos, setOpenAvisos] = useState(false);
 
-s
+
   useEffect(() => {
     const cargarDatosYToken = async () => {
       try {
-        const storedName = await SecureStore.getItemAsync("userName");
-        if (storedName) {
-          setNombre(storedName);
-        } else {
-          const raw = await SecureStore.getItemAsync("user");
+        let storedName = await SecureStore.getItemAsync("userName");
+        if (!storedName) {
+          let raw = await SecureStore.getItemAsync("user");
+          if (!raw) {
+            try {
+              raw = (await AsyncStorage.getItem("user")) || null;
+            } catch (e) {
+              console.log("Error leyendo 'user' desde AsyncStorage:", e);
+            }
+          }
+
           if (raw) {
             const user = JSON.parse(raw);
-
             const posibleNombre =
               user.name ||
               user.nombre ||
@@ -66,24 +72,45 @@ s
               `${user.name || ""} ${user.last || user.apellido || ""}`.trim();
 
             const finalName = posibleNombre || "Usuario";
+            storedName = finalName;
             setNombre(finalName);
             await SecureStore.setItemAsync("userName", finalName);
           } else {
             setNombre("Usuario");
           }
+        } else {
+          setNombre(storedName);
         }
 
-        const storedAvatar = await SecureStore.getItemAsync("avatarUri");
+        // ---------- Avatar ----------
+        let storedAvatar = await SecureStore.getItemAsync("avatarUri");
+        if (!storedAvatar) {
+          try {
+            storedAvatar = (await AsyncStorage.getItem("avatarUri")) || null;
+          } catch (e) {
+            console.log("Error leyendo avatarUri desde AsyncStorage:", e);
+          }
+        }
         if (storedAvatar) {
           setAvatarUri(storedAvatar);
         }
 
-        const jwtToken = await SecureStore.getItemAsync("token");
+        
+        let jwtToken = await SecureStore.getItemAsync("token");
+        if (!jwtToken) {
+          try {
+            jwtToken = (await AsyncStorage.getItem("token")) || null;
+          } catch (e) {
+            console.log("Error leyendo token desde AsyncStorage:", e);
+          }
+        }
+
         if (!jwtToken) {
           console.log("No hay token JWT, no envío pushToken");
           return;
         }
 
+     
         const { status: existingStatus } =
           await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
@@ -122,10 +149,19 @@ s
     cargarDatosYToken();
   }, []);
 
+
   useEffect(() => {
     const cargarReservas = async () => {
       try {
-        const jwtToken = await SecureStore.getItemAsync("token");
+        let jwtToken = await SecureStore.getItemAsync("token");
+        if (!jwtToken) {
+          try {
+            jwtToken = (await AsyncStorage.getItem("token")) || null;
+          } catch (e) {
+            console.log("Error leyendo token desde AsyncStorage:", e);
+          }
+        }
+
         if (!jwtToken) {
           console.log("No hay token, no se cargan reservas");
           return;
@@ -162,12 +198,16 @@ s
       await SecureStore.deleteItemAsync("user");
       await SecureStore.deleteItemAsync("userName");
       await SecureStore.deleteItemAsync("avatarUri");
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("user");
+      await AsyncStorage.removeItem("userName");
+      await AsyncStorage.removeItem("avatarUri");
+
       router.replace("/auth/login");
     } catch (e) {
       console.log("Error al cerrar sesión:", e);
     }
   };
-
 
   const handlePickAvatar = async () => {
     try {
@@ -215,6 +255,11 @@ s
       const uri = result.assets[0].uri;
       setAvatarUri(uri);
       await SecureStore.setItemAsync("avatarUri", uri);
+      try {
+        await AsyncStorage.setItem("avatarUri", uri);
+      } catch (e) {
+        console.log("Error guardando avatarUri en AsyncStorage:", e);
+      }
     } catch (e) {
       console.log("Error eligiendo avatar:", e);
       Alert.alert(
@@ -224,7 +269,6 @@ s
     }
   };
 
-  
   const reservasVigentes = useMemo(
     () => reservas.filter((r) => daysDiffFromToday(r.fechaISO) >= 0),
     [reservas]
@@ -232,7 +276,6 @@ s
 
   const tieneReservas = reservasVigentes.length > 0;
 
- 
   const avisos = useMemo(
     () =>
       reservas
@@ -252,7 +295,7 @@ s
         <View style={s.bgCircleTop} />
         <View style={s.bgCircleMid} />
 
-        
+        {/* HEADER */}
         <View style={s.header}>
           <TouchableOpacity onPress={handlePickAvatar} style={s.avatarWrapper}>
             {avatarUri ? (
@@ -286,7 +329,7 @@ s
           </View>
         </View>
 
-        
+        {/* TÍTULO + CHIP */}
         <View style={s.titleWrapper}>
           <View style={s.titleRow}>
             <View style={s.titleLine} />
@@ -305,6 +348,7 @@ s
           </View>
         </View>
 
+        {/* LISTA DE RESERVAS */}
         <View style={s.cardListWrapper}>
           <View style={s.cardList}>
             <View style={s.tableHeader}>
@@ -321,7 +365,9 @@ s
               }
             >
               {reservasVigentes.length === 0 ? (
-                <Text style={s.emptyText}>Aún no tienes reservas próximas.</Text>
+                <Text style={s.emptyText}>
+                  Aún no tienes reservas próximas.
+                </Text>
               ) : (
                 reservasVigentes.map((r: Reserva) => (
                   <View key={r.id} style={s.row}>
@@ -346,7 +392,7 @@ s
           </View>
         </View>
 
-     
+        {/* BARRA INFERIOR */}
         <View style={s.bottomBar}>
           <TouchableOpacity
             onPress={() => router.replace("/home")}
@@ -370,7 +416,7 @@ s
           </TouchableOpacity>
         </View>
 
-       
+        {/* BOTÓN CHATBOT */}
         <TouchableOpacity
           onPress={() => router.push("/chatbot")}
           style={s.chatBotBtn}
@@ -378,7 +424,7 @@ s
           <Text style={s.chatIcon}>🤖</Text>
         </TouchableOpacity>
 
-       
+        {/* MODAL AVISOS */}
         <Modal
           visible={openAvisos}
           transparent
