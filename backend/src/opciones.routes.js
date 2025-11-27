@@ -17,6 +17,7 @@ function auth(req, res, next) {
   }
 }
 
+// 🔹 ÁREAS
 r.get("/areas", auth, async (_req, res) => {
   try {
     const [rows] = await pool.query(
@@ -36,6 +37,7 @@ r.get("/areas", auth, async (_req, res) => {
   }
 });
 
+// 🔹 PROFESIONALES POR ÁREA
 r.get("/profesionales", auth, async (req, res) => {
   const { area } = req.query;
   if (!area) {
@@ -63,7 +65,7 @@ r.get("/profesionales", auth, async (req, res) => {
   }
 });
 
-
+// 🔹 HORAS DISPONIBLES (tiene en cuenta reservas + reservas_chatbot)
 r.get("/horas", auth, async (req, res) => {
   const { area, profesional, fecha } = req.query;
 
@@ -95,6 +97,15 @@ r.get("/horas", auth, async (req, res) => {
           FROM reservas
           WHERE estado IN ('pendiente','confirmada')
         )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM reservas_chatbot rc
+          WHERE
+            rc.area = s.nombre
+            AND rc.profesional = CONCAT(u.name, ' ', u.last)
+            AND rc.fechaISO = DATE_FORMAT(hs.fecha, '%Y-%m-%d')
+            AND rc.hora = TIME_FORMAT(hs.hora_inicio, '%H:%i')
+        )
       ORDER BY hs.hora_inicio
       `,
       [area, fecha, name, last]
@@ -111,7 +122,7 @@ r.get("/horas", auth, async (req, res) => {
   }
 });
 
-
+// 🔹 DÍAS DISPONIBLES (también respeta reservas_chatbot)
 r.get("/dias-disponibles", auth, async (req, res) => {
   const { area, profesional, mes } = req.query;
 
@@ -124,7 +135,6 @@ r.get("/dias-disponibles", auth, async (req, res) => {
     const last = partes.pop();
     const name = partes.join(" ") || last;
 
-    
     const [rows] = await pool.query(
       `
       SELECT DISTINCT
@@ -142,13 +152,27 @@ r.get("/dias-disponibles", auth, async (req, res) => {
           FROM reservas
           WHERE estado IN ('pendiente','confirmada')
         )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM reservas_chatbot rc
+          WHERE
+            rc.area = s.nombre
+            AND rc.profesional = CONCAT(u.name, ' ', u.last)
+            AND rc.fechaISO = DATE_FORMAT(hs.fecha, '%Y-%m-%d')
+            AND rc.hora = TIME_FORMAT(hs.hora_inicio, '%H:%i')
+        )
       ORDER BY fechaISO
       `,
       [area, mes, name, last]
     );
 
     const dias = rows.map((r) => r.fechaISO);
-    console.log("🔎 /opciones/dias-disponibles →", { area, profesional, mes }, "=>", dias);
+    console.log(
+      "🔎 /opciones/dias-disponibles →",
+      { area, profesional, mes },
+      "=>",
+      dias
+    );
     return res.json({ dias });
   } catch (e) {
     console.error("Error cargando días disponibles:", e.message);

@@ -18,83 +18,162 @@ function auth(req, res, next) {
   }
 }
 
+// ---------- HELPERS ----------
+
+// quita tildes, pasa a minúsculas y recorta espacios
+function normalizarTexto(txt = "") {
+  return txt
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// áreas desde servicios
+async function obtenerAreas() {
+  const [rows] = await pool.query(
+    `SELECT DISTINCT nombre AS area
+     FROM servicios
+     ORDER BY nombre`
+  );
+  return rows.map((r) => r.area);
+}
+
+// profesionales por área (usando el nombre EXACTO del área en la BD)
+async function obtenerProfesionalesPorArea(areaBD) {
+  const [rows] = await pool.query(
+    `SELECT DISTINCT CONCAT(u.name, ' ', u.last) AS profesional
+     FROM servicios s
+     JOIN users u ON s.user_id = u.id
+     WHERE s.nombre = ?
+     ORDER BY profesional`,
+    [areaBD]
+  );
+  return rows.map((r) => r.profesional);
+}
+
+// resuelve el área que escribió el usuario contra lo que hay en la BD
+// devuelve el nombre EXACTO de la BD (ej: "Trauma", "Dermatología") o null
+async function resolverAreaDesdeBD(areaUsuario) {
+  const objetivo = normalizarTexto(areaUsuario);
+  const areas = await obtenerAreas();
+
+  let mejor = null;
+
+  for (const a of areas) {
+    const norm = normalizarTexto(a);
+    if (norm === objetivo) return a; // match exacto sin tildes
+    if (norm.includes(objetivo) || objetivo.includes(norm)) {
+      mejor = mejor || a; // match parcial
+    }
+  }
+
+  return mejor;
+}
+
+// resuelve el profesional que escribió el usuario contra la BD para esa área
+// devuelve el "Nombre Apellido" EXACTO o null
+async function resolverProfesionalDesdeBD(areaBD, profesionalUsuario) {
+  const objetivo = normalizarTexto(profesionalUsuario);
+  const profesionales = await obtenerProfesionalesPorArea(areaBD);
+
+  let mejor = null;
+
+  for (const p of profesionales) {
+    const norm = normalizarTexto(p);
+    if (norm === objetivo) return p;
+    if (norm.includes(objetivo) || objetivo.includes(norm)) {
+      mejor = mejor || p;
+    }
+  }
+
+  return mejor;
+}
+
+// sigue usando horario_servicio + reservas, pero recibe el área y profesional ya "resueltos"
+async function hayDisponibilidadEnFecha(areaBD, profesionalBD, fechaISO) {
+  const [rows] = await pool.query(
+    `
+    SELECT 1
+    FROM horario_servicio hs
+    JOIN servicios s ON hs.servicio_id = s.id
+    JOIN users u ON s.user_id = u.id
+    WHERE 
+      s.nombre = ?
+      AND CONCAT(u.name, ' ', u.last) = ?
+      AND hs.fecha = ?
+      AND NOT EXISTS (
+        SELECT 1 FROM reservas r
+        WHERE r.horario_servicio_id = hs.id
+          AND r.estado IN ('pendiente','confirmada')
+      )
+    LIMIT 1
+    `,
+    [areaBD, profesionalBD, fechaISO]
+  );
+  return rows.length > 0;
+}
+
+async function horasDisponibles(areaBD, profesionalBD, fechaISO) {
+  const [rows] = await pool.query(
+    `
+    SELECT DATE_FORMAT(hs.hora_inicio, '%H:%i') AS hora
+    FROM horario_servicio hs
+    JOIN servicios s ON hs.servicio_id = s.id
+    JOIN users u ON s.user_id = u.id
+    WHERE 
+      s.nombre = ?
+      AND CONCAT(u.name, ' ', u.last) = ?
+      AND hs.fecha = ?
+      AND NOT EXISTS (
+        SELECT 1 FROM reservas r
+        WHERE r.horario_servicio_id = hs.id
+          AND r.estado IN ('pendiente','confirmada')
+      )
+    ORDER BY hs.hora_inicio ASC
+    `,
+    [areaBD, profesionalBD, fechaISO]
+  );
+  return rows.map((r) => r.hora);
+}
+
+// 🔹 NUEVO: fechas disponibles para un área + profesional (próximos días con huecos)
+async function fechasDisponibles(areaBD, profesionalBD) {
+  const [rows] = await pool.query(
+    `
+    SELECT DISTINCT hs.fecha AS fecha
+    FROM horario_servicio hs
+    JOIN servicios s ON hs.servicio_id = s.id
+    JOIN users u ON s.user_id = u.id
+    WHERE 
+      s.nombre = ?
+      AND CONCAT(u.name, ' ', u.last) = ?
+      AND hs.fecha >= CURDATE()
+      AND NOT EXISTS (
+        SELECT 1 FROM reservas r
+        WHERE r.horario_servicio_id = hs.id
+          AND r.estado IN ('pendiente','confirmada')
+      )
+    ORDER BY hs.fecha ASC
+    LIMIT 10
+    `,
+    [areaBD, profesionalBD]
+  );
+
+  // devolvemos como "AAAA-MM-DD"
+  return rows.map((r) => r.fecha.toISOString().slice(0, 10));
+}
+
+// ---------- RUTA PRINCIPAL DEL CHATBOT ----------
+
 r.post("/", auth, async (req, res) => {
   const { message = "", context = {} } = req.body || {};
-  const texto = message.toLowerCase().trim();
-
+  const texto = message.toLowerCase().trim(); // para detectar intención
   let ctx = { ...context };
   let reply = "";
   let readyToCreate = false;
 
-  // 🔹 helpers para obtener opciones desde BD
-  async function obtenerAreas() {
-    const [rows] = await pool.query(
-      `SELECT DISTINCT nombre AS area
-       FROM servicios
-       ORDER BY area`
-    );
-    return rows.map((r) => r.area);
-  }
-
-  async function obtenerProfesionalesPorArea(area) {
-    const [rows] = await pool.query(
-      `SELECT DISTINCT CONCAT(u.name, ' ', u.last) AS profesional
-       FROM servicios s
-       JOIN users u ON s.user_id = u.id
-       WHERE s.nombre = ?
-       ORDER BY profesional`,
-      [area]
-    );
-    return rows.map((r) => r.profesional);
-  }
-
-  async function hayDisponibilidadEnFecha(area, profesional, fechaISO) {
-    const [rows] = await pool.query(
-      `
-      SELECT 1
-      FROM horario_servicio hs
-      JOIN servicios s ON hs.servicio_id = s.id
-      JOIN users u ON s.user_id = u.id
-      WHERE 
-        s.nombre = ?
-        AND CONCAT(u.name, ' ', u.last) = ?
-        AND hs.fecha = ?
-        AND NOT EXISTS (
-          SELECT 1 FROM reservas r
-          WHERE r.horario_servicio_id = hs.id
-            AND r.estado IN ('pendiente','confirmada')
-        )
-      LIMIT 1
-      `,
-      [area, profesional, fechaISO]
-    );
-    return rows.length > 0;
-  }
-
-  async function horasDisponibles(area, profesional, fechaISO) {
-    const [rows] = await pool.query(
-      `
-      SELECT DATE_FORMAT(hs.hora_inicio, '%H:%i') AS hora
-      FROM horario_servicio hs
-      JOIN servicios s ON hs.servicio_id = s.id
-      JOIN users u ON s.user_id = u.id
-      WHERE 
-        s.nombre = ?
-        AND CONCAT(u.name, ' ', u.last) = ?
-        AND hs.fecha = ?
-        AND NOT EXISTS (
-          SELECT 1 FROM reservas r
-          WHERE r.horario_servicio_id = hs.id
-            AND r.estado IN ('pendiente','confirmada')
-        )
-      ORDER BY hs.hora_inicio ASC
-      `,
-      [area, profesional, fechaISO]
-    );
-    return rows.map((r) => r.hora);
-  }
-
-
+  // 1) Si no hay intent, decidimos si es reserva o respuesta IA normal
   if (!ctx.intent) {
     const quiereReserva =
       texto.includes("reserva") ||
@@ -113,7 +192,7 @@ r.post("/", auth, async (req, res) => {
 
         reply =
           "Perfecto, te ayudo a crear una reserva 🩺\n\n" +
-          "¿Para qué área es? Escribí el nombre exacto de una de las áreas." +
+          "¿Para qué área es? Escribí el nombre de una de las áreas." +
           listaAreas;
 
         return res.json({ reply, context: ctx, readyToCreate });
@@ -125,7 +204,7 @@ r.post("/", auth, async (req, res) => {
       }
     }
 
-   
+    // si no quiere reserva, usamos la IA normal
     try {
       const iaReply = await responderIA(message, ctx);
       return res.json({
@@ -144,27 +223,30 @@ r.post("/", auth, async (req, res) => {
     }
   }
 
+  // 2) Flujo de creación de reserva
   if (ctx.intent === "crear_reserva") {
+    // --- AREA ---
     if (!ctx.area) {
       const areaIngresada = message.trim();
 
       try {
         const areas = await obtenerAreas();
-        const existe = areas.includes(areaIngresada);
+        const areaBD = await resolverAreaDesdeBD(areaIngresada);
 
-        if (!existe) {
+        if (!areaBD) {
           const listaAreas =
             areas.length > 0
               ? "\n\nAlgunas áreas disponibles son:\n- " + areas.join("\n- ")
               : "";
           reply =
             "Esa área no la encontré en el sistema ❌.\n" +
-            "Por favor escribí exactamente el nombre de un área válida." +
+            "Por favor escribí un nombre de área válido (no importa si no ponés tildes)." +
             listaAreas;
           return res.json({ reply, context: ctx, readyToCreate });
         }
 
-        ctx.area = areaIngresada;
+        // guardamos el nombre EXACTO como está en la BD
+        ctx.area = areaBD;
 
         const profesionales = await obtenerProfesionalesPorArea(ctx.area);
         const listaProfes =
@@ -176,7 +258,7 @@ r.post("/", auth, async (req, res) => {
         reply =
           `Genial, área: *${ctx.area}* ✅\n\n` +
           "Ahora decime con qué profesional querés el turno.\n" +
-          "Escribí el nombre exactamente como aparece:" +
+          "Podés escribir el nombre aunque no pongas tildes, yo lo busco en el sistema." +
           listaProfes;
 
         return res.json({ reply, context: ctx, readyToCreate });
@@ -188,15 +270,18 @@ r.post("/", auth, async (req, res) => {
       }
     }
 
-
+    // --- PROFESIONAL ---
     if (!ctx.profesional) {
       const profesionalIngresado = message.trim();
 
       try {
         const profesionales = await obtenerProfesionalesPorArea(ctx.area);
-        const existe = profesionales.includes(profesionalIngresado);
+        const profesionalBD = await resolverProfesionalDesdeBD(
+          ctx.area,
+          profesionalIngresado
+        );
 
-        if (!existe) {
+        if (!profesionalBD) {
           const listaProfes =
             profesionales.length > 0
               ? "\n\nProfesionales válidos en esa área:\n- " +
@@ -204,15 +289,17 @@ r.post("/", auth, async (req, res) => {
               : "\n\n(No encontré profesionales para esa área)";
           reply =
             "Ese profesional no coincide con los que tengo en el sistema ❌.\n" +
-            "Por favor escribí uno de la lista:" +
+            "Podés escribir el nombre aunque no pongas tildes, yo lo busco por vos." +
             listaProfes;
           return res.json({ reply, context: ctx, readyToCreate });
         }
 
-        ctx.profesional = profesionalIngresado;
+        // guardamos el nombre EXACTO según la BD
+        ctx.profesional = profesionalBD;
+
         reply =
           `Perfecto, profesional: *${ctx.profesional}* ✅\n\n` +
-          "¿Para qué fecha lo querés? Usá el formato *AAAA-MM-DD* (Ej: 2025-11-20).";
+          "¿Para qué fecha lo querés? Usá el formato *AAAA-MM-DD* (Ej: 2025-12-01).";
         return res.json({ reply, context: ctx, readyToCreate });
       } catch (err) {
         console.error("Error validando profesional:", err);
@@ -222,13 +309,48 @@ r.post("/", auth, async (req, res) => {
       }
     }
 
-   
+    // 🔹 NUEVO: si ya hay área + profesional pero NO fecha, y pregunta por días disponibles
+    if (ctx.area && ctx.profesional && !ctx.fechaISO) {
+      const preguntaDias =
+        texto.includes("dia") ||
+        texto.includes("días") ||
+        texto.includes("dias") ||
+        texto.includes("fecha") ||
+        texto.includes("fechas");
+
+      if (preguntaDias) {
+        try {
+          const fechas = await fechasDisponibles(ctx.area, ctx.profesional);
+
+          if (fechas.length === 0) {
+            reply =
+              `Por ahora no encontré días con turnos libres para *${ctx.area}* con *${ctx.profesional}* 😕.\n` +
+              "Probá más adelante o elegí otro profesional / área.";
+          } else {
+            const listaFechas = fechas.map((f) => `- ${f}`).join("\n");
+            reply =
+              `Para *${ctx.area}* con *${ctx.profesional}* tengo estos días con turnos disponibles:\n\n` +
+              `${listaFechas}\n\n` +
+              "Escribí una de esas fechas en formato *AAAA-MM-DD* para seguir.";
+          }
+
+          return res.json({ reply, context: ctx, readyToCreate });
+        } catch (err) {
+          console.error("Error listando fechas disponibles:", err);
+          reply =
+            "No pude obtener los días disponibles en este momento 😓. Probá de nuevo más tarde.";
+          return res.json({ reply, context: ctx, readyToCreate: false });
+        }
+      }
+    }
+
+    // --- FECHA ---
     if (!ctx.fechaISO) {
       const fecha = message.trim();
       const esValida = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
       if (!esValida) {
         reply =
-          "Formato de fecha inválido ❌. Por favor usá el formato *AAAA-MM-DD* (Ej: 2025-11-20).";
+          "Formato de fecha inválido ❌. Por favor usá el formato *AAAA-MM-DD* (Ej: 2025-12-01).";
         return res.json({ reply, context: ctx, readyToCreate });
       }
 
@@ -246,7 +368,11 @@ r.post("/", auth, async (req, res) => {
         }
 
         ctx.fechaISO = fecha;
-        const horas = await horasDisponibles(ctx.area, ctx.profesional, fecha);
+        const horas = await horasDisponibles(
+          ctx.area,
+          ctx.profesional,
+          fecha
+        );
         const listaHoras =
           horas.length > 0
             ? "\n\nHoras disponibles para ese día:\n- " + horas.join("\n- ")
@@ -266,7 +392,44 @@ r.post("/", auth, async (req, res) => {
       }
     }
 
-  
+    // 🔹 NUEVO: si ya hay área + profesional + fecha pero NO hora, y pregunta por horarios
+    if (ctx.area && ctx.profesional && ctx.fechaISO && !ctx.hora) {
+      const preguntaHorarios =
+        texto.includes("hora") ||
+        texto.includes("horario") ||
+        texto.includes("horarios");
+
+      if (preguntaHorarios) {
+        try {
+          const horas = await horasDisponibles(
+            ctx.area,
+            ctx.profesional,
+            ctx.fechaISO
+          );
+
+          if (horas.length === 0) {
+            reply =
+              `Para *${ctx.area}* con *${ctx.profesional}* el día *${ctx.fechaISO}* no hay horarios libres 😕.\n` +
+              "Probá con otra fecha.";
+          } else {
+            const listaHoras = horas.map((h) => `- ${h}`).join("\n");
+            reply =
+              `El día *${ctx.fechaISO}* tengo estos horarios disponibles:\n\n` +
+              `${listaHoras}\n\n` +
+              "Escribí uno de esos horarios en formato *HH:MM* para continuar.";
+          }
+
+          return res.json({ reply, context: ctx, readyToCreate });
+        } catch (err) {
+          console.error("Error listando horas disponibles:", err);
+          reply =
+            "No pude obtener los horarios disponibles en este momento 😓. Probá nuevamente más tarde.";
+          return res.json({ reply, context: ctx, readyToCreate: false });
+        }
+      }
+    }
+
+    // --- HORA ---
     if (!ctx.hora) {
       const hora = message.trim();
       const esValida = /^\d{2}:\d{2}$/.test(hora);
@@ -307,6 +470,7 @@ r.post("/", auth, async (req, res) => {
       }
     }
 
+    // --- MODALIDAD ---
     if (!ctx.modalidad) {
       let modalidad = message.toLowerCase().trim();
       if (modalidad.includes("pres")) modalidad = "presencial";
@@ -332,7 +496,7 @@ r.post("/", auth, async (req, res) => {
       return res.json({ reply, context: ctx, readyToCreate });
     }
 
-
+    // --- CONFIRMACIÓN ---
     if (ctx.modalidad && !ctx.confirmado) {
       if (texto === "si" || texto === "sí" || texto.includes("confirm")) {
         ctx.confirmado = true;
@@ -384,7 +548,6 @@ r.post("/", auth, async (req, res) => {
       }
     }
   }
-
 
   reply =
     "Mmm, creo que nos perdimos un poco 🤯. Podés decirme de nuevo: *quiero hacer una reserva* y empezamos otra vez.";

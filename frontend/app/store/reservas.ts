@@ -1,12 +1,14 @@
 import { create, type StateCreator } from "zustand";
 
 export type Reserva = {
-  id: string;          
+  id: string;
   area: string;
   profesional: string;
-  fechaISO: string;  
-  hora: string;       
-  modalidad?: string; 
+  fechaISO: string;
+  hora: string;
+  modalidad?: string;              
+  origen?: "app" | "chatbot";      
+  userId?: number | string;        
 };
 
 type State = {
@@ -19,7 +21,6 @@ type State = {
 
 const creator: StateCreator<State> = (set) => ({
   reservas: [],
-
 
   add: (r) =>
     set((prev: State) => {

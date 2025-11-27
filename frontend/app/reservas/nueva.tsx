@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type MonthDay = {
   key: string;
@@ -20,7 +21,7 @@ type MonthDay = {
   iso?: string;
 };
 
-const BASE = "http://192.168.12.197:4000/api"; // 👈 IMPORTANTE: /api
+const BASE = "http://192.168.12.197:4000/api";
 
 function getMonthKey(iso: string) {
   return iso.slice(0, 7); // "2025-12-03" -> "2025-12"
@@ -51,7 +52,15 @@ export default function NuevaReserva() {
     const cargarAreas = async () => {
       try {
         setLoadingAreas(true);
-        const token = await SecureStore.getItemAsync("token");
+        let token = await SecureStore.getItemAsync("token");
+        if (!token) {
+          try {
+            token = (await AsyncStorage.getItem("token")) || null;
+          } catch (e) {
+            console.log("Error leyendo token desde AsyncStorage:", e);
+          }
+        }
+
         if (!token) {
           alert("No hay sesión activa. Inicia sesión nuevamente.");
           return;
@@ -96,7 +105,15 @@ export default function NuevaReserva() {
 
       try {
         setLoadingProfes(true);
-        const token = await SecureStore.getItemAsync("token");
+        let token = await SecureStore.getItemAsync("token");
+        if (!token) {
+          try {
+            token = (await AsyncStorage.getItem("token")) || null;
+          } catch (e) {
+            console.log("Error leyendo token desde AsyncStorage:", e);
+          }
+        }
+
         if (!token) {
           alert("No hay sesión activa. Inicia sesión nuevamente.");
           return;
@@ -142,7 +159,15 @@ export default function NuevaReserva() {
 
       try {
         setLoadingHoras(true);
-        const token = await SecureStore.getItemAsync("token");
+        let token = await SecureStore.getItemAsync("token");
+        if (!token) {
+          try {
+            token = (await AsyncStorage.getItem("token")) || null;
+          } catch (e) {
+            console.log("Error leyendo token desde AsyncStorage:", e);
+          }
+        }
+
         if (!token) {
           alert("No hay sesión activa. Inicia sesión nuevamente.");
           return;
@@ -190,7 +215,15 @@ export default function NuevaReserva() {
       if (!area || !profesional) return;
 
       try {
-        const token = await SecureStore.getItemAsync("token");
+        let token = await SecureStore.getItemAsync("token");
+        if (!token) {
+          try {
+            token = (await AsyncStorage.getItem("token")) || null;
+          } catch (e) {
+            console.log("Error leyendo token desde AsyncStorage:", e);
+          }
+        }
+
         if (!token) {
           alert("No hay sesión activa. Inicia sesión nuevamente.");
           return;
@@ -239,7 +272,15 @@ export default function NuevaReserva() {
     }
 
     try {
-      const token = await SecureStore.getItemAsync("token");
+      let token = await SecureStore.getItemAsync("token");
+      if (!token) {
+        try {
+          token = (await AsyncStorage.getItem("token")) || null;
+        } catch (e) {
+          console.log("Error leyendo token desde AsyncStorage:", e);
+        }
+      }
+
       if (!token) {
         alert("No hay sesión activa. Inicia sesión nuevamente.");
         return;
@@ -263,7 +304,7 @@ export default function NuevaReserva() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         console.log("Error backend:", err);
-        alert("No se pudo crear la reserva");
+        alert(err?.error || "No se pudo crear la reserva");
         return;
       }
 
@@ -368,7 +409,8 @@ export default function NuevaReserva() {
                 <TouchableOpacity
                   onPress={() =>
                     setFechaISO(toISO(addMonths(new Date(fechaISO), -1)))
-                }>
+                  }
+                >
                   <Text style={s.arrow}>‹</Text>
                 </TouchableOpacity>
                 <Text style={s.monthLabel}>
@@ -377,7 +419,8 @@ export default function NuevaReserva() {
                 <TouchableOpacity
                   onPress={() =>
                     setFechaISO(toISO(addMonths(new Date(fechaISO), 1)))
-                }>
+                  }
+                >
                   <Text style={s.arrow}>›</Text>
                 </TouchableOpacity>
               </View>
@@ -394,7 +437,6 @@ export default function NuevaReserva() {
                 {diasMes.map((d) => {
                   const esDiaReal = !!d.day;
 
-                  // ⚠️ Si no hay diasDisponibles, NO bloqueamos todo el mes
                   let estaDisponible = true;
                   if (
                     area &&
@@ -502,7 +544,12 @@ function SimplePicker({
   onPick: (v: string) => void;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <Pressable style={modalStyles.backdrop} onPress={onClose}>
         <View style={modalStyles.sheet}>
           <Text style={modalStyles.title}>{title}</Text>

@@ -48,7 +48,6 @@ export default function Home() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [openAvisos, setOpenAvisos] = useState(false);
 
-
   useEffect(() => {
     const cargarDatosYToken = async () => {
       try {
@@ -69,7 +68,9 @@ export default function Home() {
               user.name ||
               user.nombre ||
               user.fullName ||
-              `${user.name || ""} ${user.last || user.apellido || ""}`.trim();
+              `${user.name || ""} ${
+                user.last || user.apellido || ""
+              }`.trim();
 
             const finalName = posibleNombre || "Usuario";
             storedName = finalName;
@@ -95,7 +96,7 @@ export default function Home() {
           setAvatarUri(storedAvatar);
         }
 
-        
+        // ---------- Token para notificaciones ----------
         let jwtToken = await SecureStore.getItemAsync("token");
         if (!jwtToken) {
           try {
@@ -110,7 +111,6 @@ export default function Home() {
           return;
         }
 
-     
         const { status: existingStatus } =
           await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
@@ -149,7 +149,6 @@ export default function Home() {
     cargarDatosYToken();
   }, []);
 
-
   useEffect(() => {
     const cargarReservas = async () => {
       try {
@@ -167,15 +166,19 @@ export default function Home() {
           return;
         }
 
-        const resp = await fetch("http://192.168.12.197:4000/api/reservas", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        });
+        // 🔹 Ahora usamos el endpoint de próximas reservas (upcoming)
+        const resp = await fetch(
+          "http://192.168.12.197:4000/api/reservas/upcoming",
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwtToken}`,
+            },
+          }
+        );
 
-        console.log("STATUS /reservas:", resp.status);
+        console.log("STATUS /reservas/upcoming:", resp.status);
 
         if (!resp.ok) {
           console.log("Error al cargar reservas");
@@ -207,6 +210,76 @@ export default function Home() {
     } catch (e) {
       console.log("Error al cerrar sesión:", e);
     }
+  };
+
+  // 🔹 Cancelar reserva (llama a DELETE /api/reservas/:id)
+  const handleCancelar = (id: string) => {
+    Alert.alert(
+      "Cancelar reserva",
+      "¿Seguro que deseas cancelar esta reserva?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Sí, cancelar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              let jwtToken = await SecureStore.getItemAsync("token");
+              if (!jwtToken) {
+                try {
+                  jwtToken = (await AsyncStorage.getItem("token")) || null;
+                } catch (e) {
+                  console.log("Error leyendo token desde AsyncStorage:", e);
+                }
+              }
+
+              if (!jwtToken) {
+                Alert.alert(
+                  "Sesión",
+                  "No se encontró token. Inicia sesión nuevamente."
+                );
+                return;
+              }
+
+              const resp = await fetch(
+                `http://192.168.12.197:4000/api/reservas/${id}`,
+                {
+                  method: "DELETE",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${jwtToken}`,
+                  },
+                }
+              );
+
+              if (!resp.ok) {
+                let msg = "No se pudo cancelar la reserva.";
+                try {
+                  const body = await resp.json();
+                  if (body?.error) msg = body.error;
+                } catch {
+                  // ignore
+                }
+                Alert.alert("Error", msg);
+                return;
+              }
+
+              // Actualizamos el store local eliminando la reserva
+              const nuevas = reservas.filter((r) => r.id !== id);
+              syncFromBackend(nuevas);
+
+              Alert.alert("Listo", "La reserva fue cancelada.");
+            } catch (e) {
+              console.log("Error cancelando reserva:", e);
+              Alert.alert(
+                "Error",
+                "Ocurrió un problema al cancelar la reserva."
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handlePickAvatar = async () => {
@@ -269,6 +342,8 @@ export default function Home() {
     }
   };
 
+  // Ahora reservas ya viene solo con próximas del backend,
+  // pero dejamos el filtro por si acaso.
   const reservasVigentes = useMemo(
     () => reservas.filter((r) => daysDiffFromToday(r.fechaISO) >= 0),
     [reservas]
@@ -384,6 +459,14 @@ export default function Home() {
                           {r.modalidad ?? "Presencial"}
                         </Text>
                       </View>
+
+                      {/* Botón cancelar */}
+                      <TouchableOpacity
+                        style={s.cancelBtn}
+                        onPress={() => handleCancelar(r.id)}
+                      >
+                        <Text style={s.cancelText}>Cancelar</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))
@@ -612,7 +695,7 @@ const s = StyleSheet.create({
   statsChip: {
     marginTop: 10,
     alignSelf: "center",
-    backgroundColor: "#D0E9E6",
+  backgroundColor: "#D0E9E6",
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 999,
@@ -700,6 +783,14 @@ const s = StyleSheet.create({
   badgeText: {
     color: "#0E3A46",
     fontSize: 10,
+    fontWeight: "600",
+  },
+  cancelBtn: {
+    marginTop: 6,
+  },
+  cancelText: {
+    color: "#B91C1C",
+    fontSize: 11,
     fontWeight: "600",
   },
   emptyText: {
